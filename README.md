@@ -4,15 +4,15 @@ Repository has been renamed from "Roll-Control" and many big changes were made; 
 
 1. run this command based on how you cloned from the repo; if your not sure, you probably used the HTTPS. This should change your remote URL, so if you try to do a push or pull, this should take care of any potential URL related issues. (Make sure you open your terminal to the directory containing this repo)
 
-   SSH users: git remote set-url origin git@github.com:NUSTARS/atlas-payload-2026.git
+   <br>SSH users: git remote set-url origin git@github.com:NUSTARS/atlas-payload-2026.git
 
-   HTTPS: git remote set-url origin https://github.com/NUSTARS/atlas-payload-2026.git
+   <br>HTTPS: git remote set-url origin https://github.com/NUSTARS/atlas-payload-2026.git
    
-3. rename your folder in local end; when you do a git pull, your container folder is likely still named "Roll-Control"; rename it to "atlas-payload-2026" to avoid any confusion with the folder within the repo called "Roll-Control"
+2. rename your folder in local end; when you do a git pull, your container folder is likely still named "Roll-Control"; rename it to "atlas-payload-2026" to avoid any confusion with the folder within the repo called "Roll-Control"
 
-4. if you have made any changes that would result in a merge conflict when pulling, or you have changes that may get overriden with a git pull, try the trouble shooting method below
+3. if you have made any changes that would result in a merge conflict when pulling, or you have changes that may get overriden with a git pull, try the trouble shooting method below
    
-if you have any other issues, feel free to message one of the electrical nerds or the big bosses (Max/Bernie)
+if you have any merge conflicting or other issues, feel free to message one of the electrical nerds or the big bosses (Max/Bernie)
 
 
 Brute Force (slightly bullshit) Troubleshooting method:
@@ -28,7 +28,7 @@ starting directory is 2026 -> Roll-Control
 
 cloned repo to make 2026 folder contain -> Roll-Control, atlas-payload-2026
 
-added changes to atlas-payload-2026
+added new changes to atlas-payload-2026
 
 git add,commit,push
 
