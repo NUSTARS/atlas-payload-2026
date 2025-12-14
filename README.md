@@ -1,5 +1,7 @@
 IMPORTANT UPDATE 12/13/2025:
 
+only follow this guide if you have made contributions already, ignore if you haven't cloned yet lol
+
 Repository has been renamed from "Roll-Control" and many big changes were made; please follow guide here:
 
 1. run this command based on how you cloned from the repo; if your not sure, you probably used the HTTPS. This should change your remote URL, so if you try to do a push or pull, this should take care of any potential URL related issues. (Make sure you open your terminal to the directory containing this repo)
