@@ -1,0 +1,24 @@
+# IN THE WORKS, I WILL FIX THIS SOON
+
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cubesat-video-pipeline"
+version = "0.1.0"
+description = "A modular image-processing and orientation pipeline for CubeSat payloads."
+authors = [
+    { name = "Jeongwoo Cheon", email = "jeongw.cheon@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    "Pillow>=10.0.0",          # PIL
+    "opencv-python>=4.10.0"    # cv2
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
