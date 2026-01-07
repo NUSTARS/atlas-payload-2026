@@ -5,8 +5,14 @@ from scipy.signal import savgol_filter
 from scipy.fft import fft, fftfreq, rfft, rfftfreq
 
 # --- Load CSV data ---
-df = pd.read_csv('Plotting\Data\FT1_primary.csv')
-df = df.set_index('time')
+df = pd.read_csv('Plotting\\Data\\FT1_primary.csv')
+if 'time' in df.columns:
+    time_col = 'time'
+elif 'Time (ms)' in df.columns:
+    time_col = 'Time (ms)'
+else:
+    raise KeyError("Neither 'gyro_roll' nor 'IMU AngVeloY' found in dataframe")
+df = df.set_index(time_col)
 df = df[~df.index.duplicated(keep='first')]
 
 dt = 0.01
@@ -21,9 +27,22 @@ df = df.reset_index()
 # roll = df_main['gyro_roll']
 
 # --- only main plot ---
-df_main = df[df['state'] == 7]
-time = df_main['time']
-roll = df_main['gyro_roll']
+# prefer rows with state==7 if present, otherwise use entire dataframe
+if 'state' in df.columns and 7 in df['state'].values:
+    df_main = df[df['state'] == 7]
+else:
+    df_main = df
+
+# choose roll column, fallback to "IMU AngVeloY"
+if 'gyro_roll' in df_main.columns:
+    roll_col = 'gyro_roll'
+elif 'IMU AngVeloY' in df_main.columns:
+    roll_col = 'IMU AngVeloY'
+else:
+    raise KeyError("Neither 'gyro_roll' nor 'IMU AngVeloY' found in dataframe")
+
+time = df_main[time_col]
+roll = df_main[roll_col]
 
 
 print(time)

@@ -47,6 +47,6 @@ function ft_main_roll_only(flight_csv)
     [~, name, ~] = fileparts(flight_csv);
     assignin('base', [name, '_raw_gyro_roll'], raw_gyro_roll);
     assignin('base', [name, '_gyro_roll'], gyro_roll);
-    assignin('base', [name, '_sgf_gyro_roll'], sgf_gyro_roll);
+    assignin('base', [name, '_sgf_dgyro_roll'], sgf_gyro_roll);
 
 end
