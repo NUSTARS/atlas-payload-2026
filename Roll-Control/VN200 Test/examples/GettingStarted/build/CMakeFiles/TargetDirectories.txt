@@ -1,0 +1,9 @@
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/CMakeFiles/GettingStarted.dir
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/CMakeFiles/edit_cache.dir
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/CMakeFiles/rebuild_cache.dir
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/oVnSensor/CMakeFiles/edit_cache.dir
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/oVnSensor/CMakeFiles/rebuild_cache.dir
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/oVnSensor/src/CMakeFiles/oVnSensor.dir
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/oVnSensor/src/CMakeFiles/VnSensor.dir
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/oVnSensor/src/CMakeFiles/edit_cache.dir
+C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/oVnSensor/src/CMakeFiles/rebuild_cache.dir

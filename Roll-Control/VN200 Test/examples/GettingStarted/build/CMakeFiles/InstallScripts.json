@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/cmake_install.cmake",
+		"C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/oVnSensor/cmake_install.cmake",
+		"C:/Users/prest/Downloads/vnsdk-1-0-0/cpp/examples/GettingStarted/build/oVnSensor/src/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
