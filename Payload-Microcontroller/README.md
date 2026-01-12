@@ -38,14 +38,18 @@ Also note that when you are trying to include another file, you include the .h v
 For function definitions vs implementations, here is an example
 
 foo.h: 
-`private void foo(int arg);`
+```
+private void foo(int arg);
+```
 
 foo.cpp:
-```#include <foo.h>
+```
+#include <foo.h>
 
 private void foo(int arg) {
     Serial.println("Foo");
-}```
+}
+```
 
 Notice that the .h has no body to the methods, and the cpp file matches the parameters/return type identically. This needs to be the case for the functions to work together.
 
