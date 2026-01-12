@@ -5,7 +5,7 @@ Make sure you have Platformio installed from the github extensions; when you do,
 
 Do CTRL + SHIFT + P and type in "PlatformIO Home" and click on the first popup.
 
-When you get to the Homepage, click "Open Project" and navigate your way to the "Payload Microcontroller" folder. Since we have a platformio.ini file, the extension should detect that it is a platformio project already, so no additional setup should be needed.
+When you get to the Homepage, click "Open Project" and navigate your way to the "Payload-Microcontroller" folder. Since we have a platformio.ini file, the extension should detect that it is a platformio project already, so no additional setup should be needed.
 
 If you face any errors with getting started, please reach out to your project leads or JW
 
@@ -57,6 +57,7 @@ Also notice that the .cpp version includes the .h counterpart, this is also requ
 
 ## Final notes
 90% of the time, we will have some kind of outline for the code structure for you guys to fill out with functions already declared. In cases we don't and you're not sure what to work on, please reach out to your project leads to figure out how things will be assigned!
+
 
 
 
