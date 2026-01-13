@@ -170,6 +170,10 @@ inline Error Serial::send(const char* buffer, const size_t len) noexcept
     {
         VN_DEBUG_1("Error while writing to the serial port: " + std::to_string(GetLastError()));
         return Error::SerialWriteFailed;
+    }else{
+        // print the buffer content for debug
+        std::string data(buffer, len);
+        VN_DEBUG_1("Written data: " + data);
     }
     return Error::None;
 }
