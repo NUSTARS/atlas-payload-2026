@@ -1,7 +1,7 @@
 // main.cpp
 
 // INCLUDES
-
+#include <Arduino.h>
 
 // GLOBALS
 
@@ -10,21 +10,11 @@
 
 
 // main
-int main() {
-	// run setup functions
-	initAltimeter();
-	initBatSensor();
-	
-	// start interrupts
-	
-	
-	
-	while(1) {
-		// get battery data
-		
-		// get altimeter data
-		
-		// send to pi
-			
-	}
+void setup() {
+  Serial.begin(115200); // Initialize serial communication
+}
+
+void loop() {
+  Serial.println("Hello, World!"); // Print "Hello, World!" to the Serial Monitor
+  delay(1000); // Wait for 1 second
 }
