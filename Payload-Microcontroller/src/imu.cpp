@@ -17,7 +17,7 @@ int initIMU(int baudRate = 115200, int RXPin, int TXPin){
     sendUARTCommand("$VNASY,0*4E"); //disable asynchronous data output
     sendUARTCommand("$VNWRG,05,baudRate*XX"); //set baud rate
     sendUARTCommand("$VNWRG,17,0*XX"); //set output mode. rn its Yaw, Pitch, Roll, Inertial True Acceleration and Angular Rate Measurements but look into body vs inertial
-    sendUARTCommand("$VNWRG,60); //add timestamp to data output
+    sendUARTCommand("$VNWRG,60"); //add timestamp to data output
     return 0;
 
 }
