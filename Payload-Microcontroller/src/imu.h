@@ -24,7 +24,8 @@ int IMUErrorCode();
 
 // sendUARTCommand: (const char*) -> (void)
 // sends an ASCII command over UART to the IMU
-void sendUARTCommand(const char* command);
+void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000);
+
 
 // Things we will have to do
 /**
@@ -42,4 +43,16 @@ void sendUARTCommand(const char* command);
  *
  * == close function ==
  * close connection to IMU
+ */
+
+
+
+//  other notes to self:
+/**
+ * We should use coning and sculling if our control loop rate is a good bit less than the IMU rate (which it is)
+ * look into binary outputs - maybe faster
+ * make sure to do ahrs if gnss is not available (VNWRG 67)
+ * In general I should be doing the 3.X basic config commands for all components on the VN
+ * Also decide what to do about the SyncIn rate and skip
+ * 
  */
