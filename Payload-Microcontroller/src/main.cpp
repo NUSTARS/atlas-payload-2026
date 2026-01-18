@@ -2,8 +2,6 @@
 #include <Wire.h>
 #include <Adafruit_BNO08x.h>
 
-#include <Eigen.h>
-
 #include <altimeter.h>
 #include <bat-sensor.h>
 #include <controls.h>

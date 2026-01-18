@@ -1,8 +1,12 @@
 // dsp.h
 
+#pragma once
+
+#include <Eigen.h>
+
 // kalmanFilter: [state] -> [state]
 // does the kalman filter :)
-
+float* kalmanFilter(float* estimatedState);
 
 
 // getAngularAcceleration: float -> float
