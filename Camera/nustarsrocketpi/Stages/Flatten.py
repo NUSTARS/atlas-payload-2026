@@ -49,9 +49,9 @@ class Flatten(Stage):
             [yaw_c, 0.0, 0.0]
         ).as_matrix()
 
-        # Define camera intrinsics (TODO: MUST GET ACTUAL CAM VALUES)
-        fx, fy = 800, 800 # DUMMY VALUES
-        cx, cy = 640, 360 # DUMMY VALUES
+        # Define camera intrinsics
+        fx, fy = 1716, 1776
+        cx, cy = 2028, 1520
         K = np.array([
             [fx, 0, cx],
             [0, fy, cy],
