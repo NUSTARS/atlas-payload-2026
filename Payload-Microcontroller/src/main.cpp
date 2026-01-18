@@ -3,7 +3,16 @@
 // INCLUDES
 #include <Arduino.h>
 
+#include <Eigen.h>
+
+#include <altimeter.h>
+#include <bat-sensor.h>
+#include <controls.h>
+#include <pi-communication.h>
+#include <dsp.h>
+
 // GLOBALS
+
 
 
 // INTERRUPTS
