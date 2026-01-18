@@ -42,3 +42,10 @@ float feedForwardControl(float error) {
     return 0.0;
 }
 
+// converts torques into analog pwm signals
+void motorControl(float torque) {
+    
+    uint8_t voltage = (uint8_t) torque * 12345; // sus
+    analogWrite(MOTOR_PWM_PIN, voltage);
+}
+
