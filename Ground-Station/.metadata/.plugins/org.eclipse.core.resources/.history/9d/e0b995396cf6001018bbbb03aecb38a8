@@ -45,10 +45,7 @@ SPI_HandleTypeDef hspi2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-lora_sx1276 rx_lora;
-uint8_t rx_buffer[100] = {0};
-uint8_t rx_buffer_len = 100;
-uint8_t rx_error = 0;
+lora_sx1276 rxLora;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -82,7 +79,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  lora_init(&rx_lora, &hspi2, GPIOB, 12, LORA_BASE_FREQUENCY_US);
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -97,7 +94,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  lora_mode_receive_single(&rx_lora);cd cd
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
