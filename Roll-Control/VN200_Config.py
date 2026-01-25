@@ -95,7 +95,11 @@ if __name__ == "__main__":
     # Send a command (example: request model number)
     vn.ASCII_Send("$VNASY,0*XX")  # Disable asynchronous data output
     vn.ASCII_Send("$$VNWRG,44,1,3,5*XX") # enable real time HSI calibration with quick convergence
-    vn.ASCII_Send("$VNWRG,57,0,0,-0.2*XX") # GPS Antenna A offset Z = -0.2m
+    vn.ASCII_Send("$VNWRG,67,1,1,0,0*XX") # INS Basic Configuration
+    vn.ASCII_Send(" $VNWRG,105,1,1,1,1,1,1*42") # INS Reference Point Translation
+    vn.ASCII_Send("$VNWRG,57,0,0,-0.2*XX") # GPS Antenna A offset Z = -0.2m. This is applied after register 105 INS Reference Point Translation
+    vn.ASCII_Send("$VNWRG,67,1,1,0,0*XX") # INS Basic Configuration
+    vn.ASCII_Send("$VNWRG,67,1,1,0,0*XX") # INS Basic Configuration
     
     # Close connection when done
     vn.close()

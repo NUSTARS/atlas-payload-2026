@@ -6,7 +6,7 @@
 #include "imu.h"
 #include <HardwareSerial.h>
 
-
+static HardwareSerial IMUSerial(1); // Use Serial1 for IMU communication
 
 // initIMU: (int, int, int) -> (int)
 // initializes the IMU by writing ASCII commands over serial to the IMU
@@ -16,17 +16,24 @@
 // returns 1 on successful connection, 0 otherwise
 int initIMU(int baudRate = 115200, int serialNum){
     sendUARTCommand("$VNASY,0*4E"); //disable asynchronous data output
-    sendUARTCommand("$VNWRG,05,baudRate*XX"); //set baud rate
-    sendUARTCommand("$VNWRG,17,0*XX"); //set output mode. rn its Yaw, Pitch, Roll, Inertial True Acceleration and Angular Rate Measurements but look into body vs inertial
-    sendUARTCommand("$VNWRG,60"); //add timestamp to data output
+    if (baudRate != 115200) {
+        sendUARTCommand("$VNWRG,05,baudRate*XX"); //set baud rate
+    }
+    sendUARTCommand("$VNWRG,06,17,0*XX"); //set output mode. rn its Yaw, Pitch, Roll, Inertial True Acceleration and Angular Rate Measurements but look into body vs inertial
+    // sendUARTCommand("$VNWRG,60"); //add timestamp to data output
+
+    
+
+
+
     return 0;
 
 }
 
 
 // readIMU: (int) -> (float*)
-// reads the asynchronous data stream from RX and returns a pointer to an array of floats
-float* parseIMU(){
+// se
+float* readIMU(int syncPin){
 
 }
 
@@ -34,6 +41,7 @@ float* parseIMU(){
 // closes the connection to the IMU
 // returns 1 on successful close, 0 otherwise
 int closeIMU(){
+    // lowkey this might not be necessary
     return 0;
 }
 
@@ -45,6 +53,7 @@ int IMUErrorCode(){
 
 // sendUARTCommand: (const char*) -> (void)
 // sends an ASCII command over UART to the IMU, then waits for an acknowledgment. Also checks checksum
+// thanks claude
 void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000){
     // Send the command over UART
     Serial.print(command);
@@ -67,7 +76,7 @@ void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000){
                 // Check if message seems complete (you may need to adjust this
                 // based on your IMU's protocol - e.g., looking for a terminator)
                 // For now, we'll wait a short time for more data
-                delay(10);
+                delay(1 ); // Is this delay necessary? idk
                 if(!Serial.available()){
                     break; // No more data coming
                 }
