@@ -5,7 +5,7 @@ from scipy.signal import savgol_filter
 from scipy.fft import fft, fftfreq, rfft, rfftfreq
 
 # --- Load CSV data ---
-df = pd.read_csv('Plotting\\Data\\FT1_primary.csv')
+df = pd.read_csv('atlas-payload-2026/Roll-Control/Plotting/Data/FT1_primary.csv')#pd.read_csv('Plotting\\Data\\FT1_primary.csv')
 if 'time' in df.columns:
     time_col = 'time'
 elif 'Time (ms)' in df.columns:

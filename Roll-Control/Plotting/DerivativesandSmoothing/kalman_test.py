@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 
-csv_path = "Roll-Control\\Plotting\\DerivativesandSmoothing\\maryland_data.csv"
+csv_path = 'atlas-payload-2026/Roll-Control/Plotting/DerivativesandSmoothing/maryland_data.csv'#"Roll-Control\\Plotting\\DerivativesandSmoothing\\maryland_data.csv"
 dt = 0.001  # desired time step in seconds
 
 
