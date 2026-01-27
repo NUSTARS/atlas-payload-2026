@@ -82,10 +82,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  uint8_t res = lora_init(&rx_lora, &hspi2, GPIOB, 12, LORA_BASE_FREQUENCY_US);
-  if (res != LORA_OK) {
-	  return 1;
-  }
+  lora_init(&rx_lora, &hspi2, GPIOB, 12, LORA_BASE_FREQUENCY_US);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -100,19 +97,13 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  lora_mode_receive_continuous(&rx_lora);
+  lora_mode_receive_single(&rx_lora);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	if (lora_is_packet_available(&rx_lora)) {
-		lora_receive_packet(&rx_lora, rx_buffer, rx_buffer_len);
-		int8_t rssi = lora_packet_rssi(&rx_lora);
-		uint8_t snr = lora_packet_snr(&rx_lora);
-		HAL_USART2_Transmit(&huart2, rx_buffer, rx_buffer_len, HAL_MAX_DELAY);
-	}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
