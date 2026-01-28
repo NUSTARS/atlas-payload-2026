@@ -90,7 +90,7 @@ IMUData readIMU(uint8_t* buffer) {
        std::memcpy(&data.timeUTC, ptr, 8);
        ptr += 8;
    }
-
+   // test 1
    // Process Group 6 (INS)
 
    if (masks[5] & (1 << 0)) { // InsStatus
