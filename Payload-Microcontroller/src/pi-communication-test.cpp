@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include "SPISlave_T4.h"
 
 // SPI slave instance (Teensy 4.0 default SPI pins)
