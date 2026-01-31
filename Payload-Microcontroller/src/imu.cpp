@@ -6,7 +6,7 @@
 #include "imu.h"
 #include <HardwareSerial.h>
 
-static HardwareSerial IMUSerial(1); // Use Serial1 for IMU communication
+HardwareSerial& IMUSerial = Serial1;
 
 // initIMU: (int, int, int) -> (int)
 // initializes the IMU by writing ASCII commands over serial to the IMU
@@ -14,7 +14,7 @@ static HardwareSerial IMUSerial(1); // Use Serial1 for IMU communication
 // serialNum: the serial number of the teensy connected to the IMU
 // outputmode: the output mode for the IMU (0: asynchronous binary, 1: asynchronous ASCII, 2: synchronous binary, 3: synchronous ASCII)  
 // returns 1 on successful connection, 0 otherwise
-int initIMU(int baudRate = 115200, int serialNum){
+int initIMU(int baudRate = 115200){
     sendUARTCommand("$VNASY,0*4E"); //disable asynchronous data output
     if (baudRate != 115200) {
         sendUARTCommand("$VNWRG,05,baudRate*XX"); //set baud rate
@@ -34,8 +34,6 @@ int initIMU(int baudRate = 115200, int serialNum){
 // readIMU: (int) -> (float*)
 // reads the asynchronous data stream from RX and returns a pointer to an array of floats
 //timeUTC, ypr, angularrate, accel, PosLla, velBody, InsStatus
-
-
 struct IMUData {
    double timeUTC;
    float ypr[3];
@@ -45,18 +43,14 @@ struct IMUData {
    float velBody[3];
    uint16_t insStatus;
 };
-IMUData readIMU(){
+
 IMUData readIMU(uint8_t* buffer) {
    IMUData data;
   
    // 1. Verify Header
    if (buffer[0] != 0xFA) return data;
-   int GroupsActive = 0;
    uint8_t groupmask = buffer[1];
-   for (int i = 1; i < 8; i++){
-       if (groupmask &  (1<< i)){
-           GroupsActive++;
-       }
+
 
 
    }
@@ -65,14 +59,14 @@ IMUData readIMU(uint8_t* buffer) {
    uint16_t masks[8] = {0};
    int currentMaskIdx = 0;
    for (int i = 0; i < 8; i++) {
-       if (groupMask & (1 << i)) {
+       if (groupmask & (1 << i)) {
            // Grab the 2-byte mask and move the index
            std::memcpy(&masks[i], &buffer[2 + (currentMaskIdx * 2)], 2);
            currentMaskIdx++;
        }
    }
    // 3. Where does the payload start?
-   uint8_t* ptr = &buffer[2 + (activeGroups * 2)];
+   uint8_t* ptr = &buffer[2 + (currentMaskIdx * 2)];
 
 
    // 2. Locate the Type Masks (assuming Groups 1, 2, and 6 are active)
@@ -129,24 +123,6 @@ IMUData readIMU(uint8_t* buffer) {
    return data;
 }
   
-
-
-
-
-
-
-
-
-}
-
-// closeIMU: () -> (int)
-// closes the connection to the IMU
-// returns 1 on successful close, 0 otherwise
-int closeIMU(){
-    // lowkey this might not be necessary
-    return 0;
-}
-
 // IMUErrorCode: () -> (int)
 // Does something if we get the $VNERR message from the IMU
 int IMUErrorCode(){
@@ -156,7 +132,7 @@ int IMUErrorCode(){
 // sendUARTCommand: (const char*) -> (void)
 // sends an ASCII command over UART to the IMU, then waits for an acknowledgment. Also checks checksum
 // thanks claude
-void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000){
+void sendUARTCommand(const char* command, unsigned int timeout_ms){
     // Send the command over UART
     Serial.print(command);
     
