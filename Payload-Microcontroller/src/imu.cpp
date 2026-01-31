@@ -45,7 +45,6 @@ struct IMUData {
    float velBody[3];
    uint16_t insStatus;
 };
-IMUData readIMU(){
 IMUData readIMU(uint8_t* buffer) {
    IMUData data;
   
@@ -53,13 +52,10 @@ IMUData readIMU(uint8_t* buffer) {
    if (buffer[0] != 0xFA) return data;
    int GroupsActive = 0;
    uint8_t groupmask = buffer[1];
-   for (int i = 1; i < 8; i++){
-       if (groupmask &  (1<< i)){
-           GroupsActive++;
-       }
+   
 
 
-   }
+   
    // 2. Map the masks (they appear in order of group number)
    // We'll store them in an array so we can access them easily
    uint16_t masks[8] = {0};
@@ -72,73 +68,46 @@ IMUData readIMU(uint8_t* buffer) {
        }
    }
    // 3. Where does the payload start?
-   uint8_t* ptr = &buffer[2 + (activeGroups * 2)];
+   uint8_t* ptr = &buffer[2 + (currentMaskIdx * 2)];
+   //  Process Group 1 (Common) 
 
-
-   // 2. Locate the Type Masks (assuming Groups 1, 2, and 6 are active)
-   // In a real scenario, you'd check buffer[1] to see how many masks exist.
-   uint16_t mask1 = *reinterpret_cast<uint16_t*>(&buffer[2]);
-   uint16_t mask2 = *reinterpret_cast<uint16_t*>(&buffer[4]);
-   uint16_t mask6 = *reinterpret_cast<uint16_t*>(&buffer[6]);
-
-
-   // 3. Start pointer at the beginning of the payload
-   uint8_t* ptr = &buffer[8];
-
-// --- Process Group 1 (Common) ---
-   if (mask1 & (1 << 3)) { // YPR
+   if (masks[0] & (1 << 3)) { // YPR
        std::memcpy(data.ypr, ptr, 12);
        ptr += 12;
    }
-   if (mask1 & (1 << 5)) { // Angular Rate
+   if (masks[0] & (1 << 5)) { // Angular Rate
        std::memcpy(data.angularRate, ptr, 12);
        ptr += 12;
    }
-   if (mask1 & (1 << 8)) { // Accel
+   if (masks[0] & (1 << 8)) { // Accel
        std::memcpy(data.accel, ptr, 12);
        ptr += 12;
    }
 
+   // Process Group 2 (Time)
 
-   // --- Process Group 2 (Time) ---
-   if (mask2 & (1 << 6)) { // TimeUTC
-       // Note: TimeUTC is usually a struct of bytes.
-       // If you want a single 'double', you'll need to convert it.
-       // For now, let's assume you're just grabbing the raw 8-byte TimeStartup
-       // or specific UTC bytes.
+   if (masks[1] & (1 << 6)) { // TimeUTC
        std::memcpy(&data.timeUTC, ptr, 8);
        ptr += 8;
    }
+   // test 1
+   // Process Group 6 (INS)
 
-
-   // --- Process Group 6 (INS) ---
-   if (mask6 & (1 << 0)) { // InsStatus
+   if (masks[5] & (1 << 0)) { // InsStatus
        std::memcpy(&data.insStatus, ptr, 2);
        ptr += 2;
    }
-   if (mask6 & (1 << 1)) { // PosLla
-       std::memcpy(data.posLla, ptr, 24); // 3 doubles
+   if (masks[5] & (1 << 1)) { // PosLla
+       std::memcpy(data.posLla, ptr, 24); 
        ptr += 24;
    }
-   if (mask6 & (1 << 3)) { // VelBody
+   if (masks[5] & (1 << 3)) { // VelBody
        std::memcpy(data.velBody, ptr, 12);
        ptr += 12;
    }
 
-
    return data;
 }
-  
-
-
-
-
-
-
-
-
-}
-
 // closeIMU: () -> (int)
 // closes the connection to the IMU
 // returns 1 on successful close, 0 otherwise
