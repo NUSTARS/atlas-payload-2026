@@ -2,20 +2,6 @@
 #include <Wire.h>
 #include <Adafruit_BNO08x.h>
 
-#include <altimeter.h>
-#include <bat-sensor.h>
-#include <controls.h>
-#include <pi-communication.h>
-#include <dsp.h>
-
-// GLOBALS
-
-
-
-// INTERRUPTS
-
-
-// main
 #include <bno-imu.hpp>
 #include "pi-communication-test.h"
 
@@ -51,4 +37,3 @@ void loop() {
     prevSend = millis();
   }
 }
-
