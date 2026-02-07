@@ -97,7 +97,7 @@ class SerialCtrl():
                 gui.conn.sync_status["text"] = "..Sync.."
                 gui.conn.sync_status["fg"] = "orange"
                 gui.data.RowMsg = self.ser.readline()
-                # print(f"RowMsg: {gui.data.RowMsg}")
+                print(f"RowMsg: {gui.data.RowMsg}")
                 gui.data.DecodeMsg()
                 if gui.data.sync_ok in gui.data.msg[0]:
                     if int(gui.data.msg[1]) > 0:
