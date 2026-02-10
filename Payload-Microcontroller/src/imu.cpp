@@ -4,6 +4,7 @@
 // related to setting up and getting data
 // from the IMU
 #include "imu.h"
+#include <Arduino.h>
 #include <HardwareSerial.h>
 
 HardwareSerial& IMUSerial = Serial1;
@@ -43,21 +44,13 @@ struct IMUData {
    float velBody[3];
    uint16_t insStatus;
 };
-<<<<<<< HEAD
-
-=======
->>>>>>> 845eb913152e3a65f9b4da5f9f5f85492721bb29
 IMUData readIMU(uint8_t* buffer) {
    IMUData data;
   
    // 1. Verify Header
    if (buffer[0] != 0xFA) return data;
    uint8_t groupmask = buffer[1];
-<<<<<<< HEAD
-
-=======
    
->>>>>>> 845eb913152e3a65f9b4da5f9f5f85492721bb29
 
 
    
@@ -74,10 +67,7 @@ IMUData readIMU(uint8_t* buffer) {
    }
    // 3. Where does the payload start?
    uint8_t* ptr = &buffer[2 + (currentMaskIdx * 2)];
-<<<<<<< HEAD
-=======
    //  Process Group 1 (Common) 
->>>>>>> 845eb913152e3a65f9b4da5f9f5f85492721bb29
 
    if (masks[0] & (1 << 3)) { // YPR
        std::memcpy(data.ypr, ptr, 12);
@@ -116,9 +106,6 @@ IMUData readIMU(uint8_t* buffer) {
 
    return data;
 }
-<<<<<<< HEAD
-  
-=======
 // closeIMU: () -> (int)
 // closes the connection to the IMU
 // returns 1 on successful close, 0 otherwise
@@ -127,7 +114,6 @@ int closeIMU(){
     return 0;
 }
 
->>>>>>> 845eb913152e3a65f9b4da5f9f5f85492721bb29
 // IMUErrorCode: () -> (int)
 // Does something if we get the $VNERR message from the IMU
 int IMUErrorCode(){
@@ -195,4 +181,17 @@ void sendUARTCommand(const char* command, unsigned int timeout_ms){
     } else {
         Serial.println("Command acknowledged successfully");
     }
+}
+
+// attachIMUTriggerISR: (uint8_t, void (*)()) -> (bool)
+// attaches an ISR that fires when the specified pin is pulled high
+// returns true if the pin supports interrupts and the ISR was attached
+bool attachIMUTriggerISR(uint8_t pin, void (*isr)()){
+    if (digitalPinToInterrupt(pin) == NOT_AN_INTERRUPT) {
+        return false;
+    }
+
+    pinMode(pin, INPUT);
+    attachInterrupt(digitalPinToInterrupt(pin), isr, RISING);
+    return true;
 }
