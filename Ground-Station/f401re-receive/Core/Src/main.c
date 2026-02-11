@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "lora_sx1276.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,17 +46,17 @@ SPI_HandleTypeDef hspi2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-lora_sx1276 rx_lora;
-uint8_t rx_buffer[100] = {0};
-uint8_t rx_buffer_len = 100;
-uint8_t rx_error = 0;
+lora_sx1276 lora;
+uint8_t buf[100] = {0};
+uint8_t buf_len = 100;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_USART2_UART_Init(void);
 static void MX_SPI2_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -82,10 +83,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  uint8_t res = lora_init(&rx_lora, &hspi2, GPIOB, 12, LORA_BASE_FREQUENCY_US);
-  if (res != LORA_OK) {
-	  return 1;
-  }
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -97,21 +95,27 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USART2_UART_Init();
   MX_SPI2_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  lora_mode_receive_continuous(&rx_lora);
+  uint8_t res = lora_init(&lora, &hspi2, GPIOB, 12, LORA_BASE_FREQUENCY_US);
+    if (res != LORA_OK) {
+  	  return 1;
+    }
+
+  lora_mode_receive_continuous(&lora);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	if (lora_is_packet_available(&rx_lora)) {
-		lora_receive_packet(&rx_lora, rx_buffer, rx_buffer_len);
-		int8_t rssi = lora_packet_rssi(&rx_lora);
-		uint8_t snr = lora_packet_snr(&rx_lora);
-		HAL_USART2_Transmit(&huart2, rx_buffer, rx_buffer_len, HAL_MAX_DELAY);
+	if (lora_is_packet_available(&lora)) {
+		lora_receive_packet(&lora, buf, buf_len, NULL);
+		int8_t rssi = lora_packet_rssi(&lora);
+		uint8_t snr = lora_packet_snr(&lora);
+		HAL_UART_Transmit(&huart2, buf, buf_len, HAL_MAX_DELAY);
 	}
     /* USER CODE END WHILE */
 
@@ -188,7 +192,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi2.Init.NSS = SPI_NSS_HARD_OUTPUT;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
   hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
@@ -258,6 +262,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -270,6 +277,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -289,8 +303,12 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
+  uint8_t err_buf[] = "Oops!\r\n";
+  uint8_t err_buf_len = sizeof(err_buf) / 8;
+
   while (1)
   {
+	  HAL_UART_Transmit(&huart2, (uint8_t*) err_buf, err_buf_len, HAL_MAX_DELAY);
   }
   /* USER CODE END Error_Handler_Debug */
 }
