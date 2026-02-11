@@ -4,9 +4,10 @@
 // related to setting up and getting data
 // from the IMU
 #include "imu.h"
+#include <Arduino.h>
 #include <HardwareSerial.h>
 
-static HardwareSerial IMUSerial(1); // Use Serial1 for IMU communication
+HardwareSerial& IMUSerial = Serial1;
 
 // initIMU: (int, int, int) -> (int)
 // initializes the IMU by writing ASCII commands over serial to the IMU
@@ -14,7 +15,7 @@ static HardwareSerial IMUSerial(1); // Use Serial1 for IMU communication
 // serialNum: the serial number of the teensy connected to the IMU
 // outputmode: the output mode for the IMU (0: asynchronous binary, 1: asynchronous ASCII, 2: synchronous binary, 3: synchronous ASCII)  
 // returns 1 on successful connection, 0 otherwise
-int initIMU(int baudRate = 115200, int serialNum){
+int initIMU(int baudRate = 115200){
     sendUARTCommand("$VNASY,0*4E"); //disable asynchronous data output
     if (baudRate != 115200) {
         sendUARTCommand("$VNWRG,05,baudRate*XX"); //set baud rate
@@ -34,8 +35,6 @@ int initIMU(int baudRate = 115200, int serialNum){
 // readIMU: (int) -> (float*)
 // reads the asynchronous data stream from RX and returns a pointer to an array of floats
 //timeUTC, ypr, angularrate, accel, PosLla, velBody, InsStatus
-
-
 struct IMUData {
    double timeUTC;
    float ypr[3];
@@ -50,7 +49,6 @@ IMUData readIMU(uint8_t* buffer) {
   
    // 1. Verify Header
    if (buffer[0] != 0xFA) return data;
-   int GroupsActive = 0;
    uint8_t groupmask = buffer[1];
    
 
@@ -61,7 +59,7 @@ IMUData readIMU(uint8_t* buffer) {
    uint16_t masks[8] = {0};
    int currentMaskIdx = 0;
    for (int i = 0; i < 8; i++) {
-       if (groupMask & (1 << i)) {
+       if (groupmask & (1 << i)) {
            // Grab the 2-byte mask and move the index
            std::memcpy(&masks[i], &buffer[2 + (currentMaskIdx * 2)], 2);
            currentMaskIdx++;
@@ -125,7 +123,7 @@ int IMUErrorCode(){
 // sendUARTCommand: (const char*) -> (void)
 // sends an ASCII command over UART to the IMU, then waits for an acknowledgment. Also checks checksum
 // thanks claude
-void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000){
+void sendUARTCommand(const char* command, unsigned int timeout_ms){
     // Send the command over UART
     Serial.print(command);
     
@@ -183,4 +181,17 @@ void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000){
     } else {
         Serial.println("Command acknowledged successfully");
     }
+}
+
+// attachIMUTriggerISR: (uint8_t, void (*)()) -> (bool)
+// attaches an ISR that fires when the specified pin is pulled high
+// returns true if the pin supports interrupts and the ISR was attached
+bool attachIMUTriggerISR(uint8_t pin, void (*isr)()){
+    if (digitalPinToInterrupt(pin) == NOT_AN_INTERRUPT) {
+        return false;
+    }
+
+    pinMode(pin, INPUT);
+    attachInterrupt(digitalPinToInterrupt(pin), isr, RISING);
+    return true;
 }

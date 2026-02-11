@@ -11,6 +11,7 @@ const float I = 0.0;
 const float D = 0.0;
 const float ISaturate = 10.0;
 
+const float FFGain = 0.0;
 
 unsigned long prevT = 0;
 float prevError = 0;
@@ -20,7 +21,7 @@ float iTerm = 0;
 // PIDControl: float -> float
 // converts an error into a control value
 // using PID control
-float PIDControl(float error) {
+float PIDControl(float heading, float angularVel) {
     // If we want to integrate and/or
     // differentiate w.r.t. deltaT
     /*
@@ -28,18 +29,22 @@ float PIDControl(float error) {
     unsigned long deltaT = t - prevT;
     prevT = t;
     */
-
-    // this will likely need filtering
-    float dError = error - prevError;
     
-    iTerm += I * error;
+    // this will likely need filtering
+
+    //float dError = error - prevError;
+    
+    iTerm += I * heading;
     iTerm = max(min(iTerm, ISaturate), -ISaturate);
 
-    return (P * error) - (D * dError) + iTerm;
+    return (P * heading) - (D * angularVel) + iTerm;
 }
 
-float feedForwardControl(float error) {
-    return 0.0;
+float feedForwardControl(float angularAcc) {
+    
+    float gain = 0.0;
+
+    return gain * angularAcc;
 }
 
 // converts torques into analog pwm signals
