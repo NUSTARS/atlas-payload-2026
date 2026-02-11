@@ -13,4 +13,5 @@ float PIDControl(float error);
 // feedForwardControl: float -> float
 float feedForwardControl(float error);
 
+// sends a PWM signal to the motor encoder
 void motorControl(float torque);
