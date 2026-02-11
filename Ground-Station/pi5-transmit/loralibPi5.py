@@ -156,11 +156,16 @@ def writeBuf(addr, value):
     # Input: string to send
     # Support for arrays or lists of numbers is not guaranteed
     # address MSB must be one to write
-    data = [addr|0x80]
-    for x in value:
-        data.append(ord(x))
-    spibuf = bytes(data)
-    spi.xfer(spibuf,SPEED,0,8)
+    # data = [addr|0x80]
+    # for x in value:
+    #     data.append(ord(x))
+    # spibuf = bytes(data)
+    # spi.xfer(spibuf,SPEED,0,8)
+    
+    # value must be bytes or bytearray
+    data = bytes([addr | 0x80]) + value
+    spi.xfer(data, SPEED, 0, 8)
+
 
 def opmode(mode):
     # Set the operating mode of the chip
