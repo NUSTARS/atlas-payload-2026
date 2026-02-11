@@ -2,13 +2,12 @@
 #include <Wire.h>
 #include <Adafruit_BNO08x.h>
 
-<<<<<<< HEAD
 
 #include <altimeter.h>
 #include <bat-sensor.h>
 #include <controls.h>
 #include <pi-communication.h>
-#include <dsp.h>
+
 
 // GLOBALS
 
@@ -18,8 +17,6 @@
 
 
 // main
-=======
->>>>>>> b7a4c72326189e04c83ff1c54448fb2c102524da
 #include <bno-imu.hpp>
 #include "pi-communication-test.h"
 
