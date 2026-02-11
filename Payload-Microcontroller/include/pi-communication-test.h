@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include "SPISlave_T4.h"
+#include <string.h>
 
 extern volatile uint32_t spi_events;
 void setup_slave();
