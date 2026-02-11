@@ -1,17 +1,26 @@
 // imu.h
 
-// initIMU: (int, int, int) -> (int)
+#include <Arduino.h>
+
+// initIMU: (int) -> (int)
 // initializes the IMU by writing ASCII commands over serial to the IMU
 // baudRate: the baud rate for serial communication, defaults at 115200
-// RXPin: the RX pin for serial communication
-// TXPin: the TX pin for serial communication
 // returns 1 on successful connection, 0 otherwise
-int initIMU(int baudRate = 115200, int RXPin, int TXPin);
+int initIMU(int baudRate = 115200);
 
 
-// readIMU: (int) -> (float*)
-// reads the asynchronous data stream from RX and returns a pointer to an array of floats
-float* readIMU();
+// readIMU: (uint8_t*) -> (IMUData)
+// reads the asynchronous data stream from buffer and returns parsed IMU data
+struct IMUData {
+	double timeUTC;
+	float ypr[3];
+	float angularRate[3];
+	float accel[3];
+	double posLla[3];
+	float velBody[3];
+	uint16_t insStatus;
+};
+IMUData readIMU(uint8_t* buffer);
 
 // closeIMU: () -> (int)
 // closes the connection to the IMU
@@ -25,6 +34,11 @@ int IMUErrorCode();
 // sendUARTCommand: (const char*) -> (void)
 // sends an ASCII command over UART to the IMU
 void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000);
+
+// attachIMUTriggerISR: (uint8_t, void (*)()) -> (bool)
+// attaches an ISR that fires when the specified pin is pulled high
+// returns true if the pin supports interrupts and the ISR was attached
+bool attachIMUTriggerISR(uint8_t pin, void (*isr)());
 
 
 // Things we will have to do
