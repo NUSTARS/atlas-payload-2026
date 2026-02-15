@@ -1,3 +1,6 @@
 # Virtual environments
 venv/
 .venv/
+.DS_Store
+Ground-Station/.metadata/
+**/__pycache__/
