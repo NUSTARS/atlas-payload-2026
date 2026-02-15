@@ -20,6 +20,7 @@ struct IMUData {
 	float velBody[3];
 	uint16_t insStatus;
 };
+
 IMUData readIMU(uint8_t* buffer);
 
 // closeIMU: () -> (int)

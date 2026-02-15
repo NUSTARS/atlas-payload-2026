@@ -10,9 +10,12 @@ struct AltimeterData {
     float altitude_m;
 };
 
-// init altimeter: (void) -> (void)
+//
+// init altimeter: (void) -> bool
+//
 // initializes the altimeter
-bool initAtimeter();
+// returns true in the event of success, false otherwise
+bool initAltimeter();
 
 
 // read altimeter: (void) -> float

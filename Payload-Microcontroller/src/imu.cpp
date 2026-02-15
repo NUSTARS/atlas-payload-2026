@@ -35,15 +35,6 @@ int initIMU(int baudRate = 115200){
 // readIMU: (int) -> (float*)
 // reads the asynchronous data stream from RX and returns a pointer to an array of floats
 //timeUTC, ypr, angularrate, accel, PosLla, velBody, InsStatus
-struct IMUData {
-   double timeUTC;
-   float ypr[3];
-   float angularRate[3];
-   float accel[3];
-   double posLla[3];
-   float velBody[3];
-   uint16_t insStatus;
-};
 IMUData readIMU(uint8_t* buffer) {
    IMUData data;
   

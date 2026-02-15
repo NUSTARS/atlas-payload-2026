@@ -8,10 +8,10 @@
 // PIDControl: float -> float
 // converts an error into a control value
 // using PID control
-float PIDControl(float error);
+float PIDControl(float heading, float angularVel);
 
 // feedForwardControl: float -> float
-float feedForwardControl(float error);
+float feedForwardControl(float angularAcc);
 
 // sends a PWM signal to the motor encoder
 void motorControl(float torque);

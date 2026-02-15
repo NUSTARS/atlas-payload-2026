@@ -8,7 +8,7 @@ Adafruit_BMP280 bmp;
 float groundPressureHPa = 1013.25;
 // initAltimeter: (void) -> (void)
 // initializes the altimeter
-bool initAtimeter() {
+bool initAltimeter() {
 	if (!bmp.begin(0x47)){
 		Serial.println("Failed to connect sensor (Altimeter)");
 		return false;

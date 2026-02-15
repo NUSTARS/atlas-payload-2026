@@ -2,38 +2,71 @@
 #include <Wire.h>
 #include <Adafruit_BNO08x.h>
 
-<<<<<<< HEAD
 
 #include <altimeter.h>
 #include <bat-sensor.h>
 #include <controls.h>
 #include <pi-communication.h>
-
-
-// GLOBALS
-
-
-
-// INTERRUPTS
-
-
-// main
-=======
->>>>>>> e65a82baaaf17af693aaf314544ff128254a52bd
 #include <bno-imu.hpp>
 #include "pi-communication-test.h"
-#include "altimeter.h"
+#include <altimeter.h>
+#include <KalmanFilter.h>
+#include <imu.h>
 
+// DEFINES =========================================================================
 enum flight_phase {
   ON_PAD,
   POST_BOOST,
   DESCENDING,
+  RUN_CONTROLS,
   LANDED
 };
+// FIXME add correct thresholds
+#define POST_BOOST_THRESHOLD_M 50
+#define DESCENDING_ALTITUDE_DELTA_M 1234
+#define RUN_CONTROLS_THRESHOLD_M 300
+#define LANDED_THRESHOLD_M 10
+
+
+// GLOBALS =========================================================================
+float prev_altitude_m = 0.0; // for use in check for advance to DESCENDING state
 
 flight_phase current_phase = ON_PAD;
 
 AltimeterData flight_data;
+
+KalmanFilter kf;
+
+IMUData imu_data;
+
+// INTERRUPTS ======================================================================
+void controlInterrupt() {
+  // read data
+  uint8_t* buffer = {}; // FIXME need to get actual buffer of IMU data
+  imu_data = readIMU(buffer);
+
+  // only continue if we are running controls
+  if (current_phase != RUN_CONTROLS) return;
+  // kalman filter    TODO determine if using doubles
+  double roll_heading = (double)imu_data.ypr[2]; 
+  double roll_velocity = (double)imu_data.angularRate[2];
+  // FIXME update timestep
+  kf.update(roll_heading, roll_velocity);
+  kf.predict();
+  Eigen::Vector3d state = kf.state();
+  
+  
+
+
+  // get pid value
+  float pid_result = PIDControl((float)state[0], (float)state[1]);
+  // get feed-forward value
+  float ff_result = feedForwardControl((float)state[2]);
+  // command motor
+  motorControl(pid_result + ff_result);
+}
+
+// SETUP ===========================================================================
 
 void setup() {
   Serial.begin(115200);
@@ -69,11 +102,13 @@ void setup() {
 
 }
 
+// LOOP ============================================================================
+
 void loop() {
 
   update_bno_values();
   readAltimeter(flight_data);
-  
+
   static unsigned long prevSend = 0;
   if (millis() - prevSend >= 10) { // 100 Hz packet publish
     spi_set_imu_packet(get_acceleration(), get_gyro(), get_quat());
@@ -83,20 +118,27 @@ void loop() {
   switch (current_phase) {
 
     case ON_PAD:
-      if ( flight_data.altitude_m > /* INSERT POST_BOOST THRESHOLD */ ) {
+      if (flight_data.altitude_m > ON_PAD) {
         current_phase = POST_BOOST;
         Serial.println("LIFTOFF DETECTED");
       }
       
     case POST_BOOST:
-      if ( flight_data.altitude_m  < /* INSERT DESCENDING THRESHOLD */ ) {
+      if (prev_altitude_m - flight_data.altitude_m > DESCENDING_ALTITUDE_DELTA_M ) {
         current_phase = DESCENDING;
+      }
+      prev_altitude_m = flight_data.altitude_m;
+      
+
+    case DESCENDING:
+      if (flight_data.altitude_m < RUN_CONTROLS_THRESHOLD_M) {
+        current_phase = RUN_CONTROLS;
         Serial.println("STARTING CONTROL SYSTEM");
         // Trigger RPi to start capturing pictures
       }
     
-    case DESCENDING:
-      if ( flight_data.altitude_m  < /* INSERT DESCENDING THRESHOLD */ ) {
+    case RUN_CONTROLS:
+      if (flight_data.altitude_m  < LANDED_THRESHOLD_M) {
         current_phase = LANDED;
         Serial.println("LANDED");
       }
