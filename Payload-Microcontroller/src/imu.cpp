@@ -7,19 +7,12 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 
-HardwareSerial& IMUSerial = Serial1;
 
 // initIMU: (int, int, int) -> (int)
 // initializes the IMU by writing ASCII commands over serial to the IMU
-// baudRate: the baud rate for serial communication, defaults at 115200
-// serialNum: the serial number of the teensy connected to the IMU
-// outputmode: the output mode for the IMU (0: asynchronous binary, 1: asynchronous ASCII, 2: synchronous binary, 3: synchronous ASCII)  
 // returns 1 on successful connection, 0 otherwise
-int initIMU(int baudRate = 115200){
+int initIMU(){
     sendUARTCommand("$VNASY,0*4E"); //disable asynchronous data output
-    if (baudRate != 115200) {
-        sendUARTCommand("$VNWRG,05,baudRate*XX"); //set baud rate
-    }
     sendUARTCommand("$VNWRG,06,17,0*XX"); //set output mode. rn its Yaw, Pitch, Roll, Inertial True Acceleration and Angular Rate Measurements but look into body vs inertial
     // sendUARTCommand("$VNWRG,60"); //add timestamp to data output
 
@@ -114,9 +107,9 @@ int IMUErrorCode(){
 // sendUARTCommand: (const char*) -> (void)
 // sends an ASCII command over UART to the IMU, then waits for an acknowledgment. Also checks checksum
 // thanks claude
-void sendUARTCommand(const char* command, unsigned int timeout_ms){
+int sendUARTCommand(const char* command, unsigned int timeout_ms){
     // Send the command over UART
-    Serial.print(command);
+    Serial1.print(command);
     
     // Wait for response with timeout
     unsigned long startTime = millis();
@@ -124,8 +117,8 @@ void sendUARTCommand(const char* command, unsigned int timeout_ms){
     
     // Read response until timeout
     while(millis() - startTime < timeout_ms){
-        if(Serial.available() > 0){
-            char c = Serial.read();
+        if(Serial1.available() > 0){
+            char c = Serial1.read();
             response += c;
             
             // Check if we have at least 2 characters for checksum
@@ -133,11 +126,7 @@ void sendUARTCommand(const char* command, unsigned int timeout_ms){
                 // Reset timeout on each character received
                 startTime = millis();
                 
-                // Check if message seems complete (you may need to adjust this
-                // based on your IMU's protocol - e.g., looking for a terminator)
-                // For now, we'll wait a short time for more data
-                delay(1 ); // Is this delay necessary? idk
-                if(!Serial.available()){
+                if(!Serial1.available()){
                     break; // No more data coming
                 }
             }
