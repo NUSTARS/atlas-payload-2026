@@ -90,19 +90,7 @@ IMUData readIMU(uint8_t* buffer) {
 
    return data;
 }
-// closeIMU: () -> (int)
-// closes the connection to the IMU
-// returns 1 on successful close, 0 otherwise
-int closeIMU(){
-    // lowkey this might not be necessary
-    return 0;
-}
 
-// IMUErrorCode: () -> (int)
-// Does something if we get the $VNERR message from the IMU
-int IMUErrorCode(){
-    return 0;
-}
 
 // sendUARTCommand: (const char*) -> (void)
 // sends an ASCII command over UART to the IMU, then waits for an acknowledgment. Also checks checksum
