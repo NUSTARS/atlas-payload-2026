@@ -6,14 +6,14 @@
 #define MOTOR_PWM_PIN 2
 
 // PIDControl: float -> float
-// creates a control value using the PID algorithm, with
+// creates a control value (torque) using the PID algorithm, with
 // the input heading used for the proportional error and in the
 // computation of the integral error
 // and the input angularVel being used for the derivative error
 float PIDControl(float heading, float angularVel);
 
 // feedForwardControl: float -> float
-// creates a control value proportional to 
+// creates a control value (torque) proportional to 
 // the input angular acceleration
 float feedForwardControl(float angularAcc);
 
