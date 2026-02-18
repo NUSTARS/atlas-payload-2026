@@ -51,17 +51,17 @@ void controlInterrupt() {
   double roll_heading = (double)imu_data.ypr[2]; 
   double roll_velocity = (double)imu_data.angularRate[2];
   // FIXME update timestep
-  kf.update(roll_heading, roll_velocity);
   kf.predict();
-  Eigen::Vector3d state = kf.state();
+  kf.update(roll_heading, roll_velocity);
+  Eigen::Vector3f x_hat = kf.state();
   
   
 
 
   // get pid value
-  float pid_result = PIDControl((float)state[0], (float)state[1]);
+  float pid_result = PIDControl((float)x_hat[0], (float)x_hat[1]);
   // get feed-forward value
-  float ff_result = feedForwardControl((float)state[2]);
+  float ff_result = feedForwardControl((float)x_hat[2]);
   // command motor
   motorControl(pid_result + ff_result);
 }
