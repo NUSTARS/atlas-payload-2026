@@ -516,19 +516,19 @@ def scan_spi_for_sx1276(
                 spi.close()
 
                 if version == 0x12:
-                    print(f"✅ SX1276 detected on spidev{bus}.{device}")
+                    print(f"SX1276 detected on spidev{bus}.{device}")
                     found.append((bus, device))
                 else:
-                    print(f"🟡 spidev{bus}.{device} responded with 0x{version:02X}")
+                    print(f"spidev{bus}.{device} responded with 0x{version:02X}")
 
             except FileNotFoundError:
-                print(f"❌ spidev{bus}.{device} does not exist")
+                print(f"spidev{bus}.{device} does not exist")
 
             except PermissionError:
-                print(f"❌ Permission denied opening spidev{bus}.{device}")
+                print(f"Permission denied opening spidev{bus}.{device}")
 
             except Exception as e:
-                print(f"❌ Error on spidev{bus}.{device}: {e}")
+                print(f"Error on spidev{bus}.{device}: {e}")
 
     return found
 
@@ -553,8 +553,8 @@ def configure(fq, bw, cr, header, sf, CRC, sync, power):
 #     devices = scan_spi_for_sx1276()
 
 #     if devices:
-#         print("🎉 Found SX1276 on:")
+#         print("Found SX1276 on:")
 #         for bus, dev in devices:
 #             print(f"   - spidev{bus}.{dev}")
 #     else:
-#         print("😬 No SX1276 devices detected on SPI")
+#         print("No SX1276 devices detected on SPI")

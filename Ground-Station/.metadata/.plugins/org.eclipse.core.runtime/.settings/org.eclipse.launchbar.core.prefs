@@ -1,9 +1,0 @@
-LaunchTargetManager/org.eclipse.launchbar.core.launchTargetType.local,Local/arch=x86_64
-LaunchTargetManager/org.eclipse.launchbar.core.launchTargetType.local,Local/name=Local
-LaunchTargetManager/org.eclipse.launchbar.core.launchTargetType.local,Local/os=win32
-configDescList=org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:f401re-receive
-eclipse.preferences.version=1
-org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:f401re-receive/activeLaunchMode=debug
-org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:f401re-receive/activeLaunchTarget=null\:---
-org.eclipse.launchbar.core.descriptorType.default\:f401re-receive/activeLaunchMode=run
-org.eclipse.launchbar.core.descriptorType.default\:f401re-receive/activeLaunchTarget=org.eclipse.launchbar.core.launchTargetType.local\:Local
