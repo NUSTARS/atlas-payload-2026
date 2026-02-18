@@ -6,7 +6,7 @@
 // RXPin: the RX pin for serial communication
 // TXPin: the TX pin for serial communication
 // returns 1 on successful connection, 0 otherwise
-int initIMU(int baudRate = 115200, int RXPin, int TXPin);
+//int initIMU(int baudRate = 115200, int RXPin, int TXPin);
 
 
 // readIMU: (int) -> (float*)
@@ -25,6 +25,8 @@ int IMUErrorCode();
 // sendUARTCommand: (const char*) -> (void)
 // sends an ASCII command over UART to the IMU
 void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000);
+
+void testbinary();
 
 
 // Things we will have to do
