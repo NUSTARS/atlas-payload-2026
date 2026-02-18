@@ -1,25 +1,57 @@
 #include <Arduino.h>
-#include <SoftwareSerial.h>
+#define LORA Serial1   // UART1
 
-SoftwareSerial lora(2,3) // PINS RX, TX 
-
-String lora_TX_address = "1";
-String lora_RX_address = "2";
+void sendCommand(const char *cmd) {
+  LORA.println(cmd);
+  delay(200);
+  while (LORA.available()) {
+    Serial.write(LORA.read());
+  }
+}
 
 void setup() {
+  Serial.begin(115200);
+  LORA.begin(115200);  // default baud rate for RYLR998
 
-  Serial.begin(9600);
-  lora.begin(9600);
+  delay(2000);
 
-  loraSerial.println("AT+ADDRESS=1" + lora_TX_address);
-  delay(500);
-  loraSerial.println("AT+NETWORKID=5");
-  delay(500);
-  loraSerial.println("AT+band=125000,K");
-  delay(500)
+  // Set address (must be unique)
+  sendCommand("AT+ADDRESS=1");
+
+  // Set network ID (must match receiver if using AT mode)
+  sendCommand("AT+NETWORKID=5");
+
+  // Set RF parameters:
+  // Format:
+  // AT+PARAMETER=<SF>,<BW>,<CR>,<Preamble>
+  //
+  // SF7
+  // BW=125kHz (0)
+  // CR=4/5 (1)
+  // Preamble=8
+
+  sendCommand("AT+PARAMETER=7,0,1,8");
+
+  // Set frequency (example 915 MHz)
+  sendCommand("AT+BAND=915000000");
+
+  // Set output power (max 22 dBm)
+  sendCommand("AT+CRFOP=15");
+
+  Serial.println("LoRa Ready");
 }
 
 void loop() {
-  lora.println("AT+SEND=" + lora_RX_address + ",5,HI");
-  delay(1000);
+
+  uint8_t payload[24];
+
+  for (int i = 0; i < 24; i++) {
+    payload[i] = i;   // example data
+  }
+
+  LORA.print("AT+SEND=2,24,");
+  LORA.write(payload, 24);
+  LORA.println();
+
+  delay(5000);
 }

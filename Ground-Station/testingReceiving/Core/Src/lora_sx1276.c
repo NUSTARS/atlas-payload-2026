@@ -710,8 +710,9 @@ uint8_t lora_init(lora_sx1276 *lora, SPI_HandleTypeDef *spi, GPIO_TypeDef *nss_p
   lora_set_frequency(lora, freq);
   lora_set_spreading_factor(lora, LORA_DEFAULT_SF);
   lora_set_preamble_length(lora, LORA_DEFAULT_PREAMBLE_LEN);
-  // Set as implicit header mode CHANGED
-  lora_set_implicit_header_mode(lora);
+  // Set as implicit header mode CHANGED FOR TESTING RYLR IT'S ON
+  // lora_set_implicit_header_mode(lora);
+  lora_set_explicit_header_mode(lora);
   // Set LNA boost
   uint8_t current_lna = read_register(lora, REG_LNA);
   write_register(lora, REG_LNA,  current_lna | 0x03);
@@ -722,10 +723,10 @@ uint8_t lora_init(lora_sx1276 *lora, SPI_HandleTypeDef *spi, GPIO_TypeDef *nss_p
   // Set default mode
   lora_mode_standby(lora);
   // MY CHANGES
-  // Disable CRC for now
-  lora_set_crc(lora, 0);
-  // Set payload length to 24 bytes
-  write_register(lora, REG_PAYLOAD_LENGTH, 24);
+  // Disable CRC for now, FOR TESTING RYLR IT'S ON
+  lora_set_crc(lora, 1);
+  // Set payload length to 24 bytes FOR TESTING RYLR IT'S ON
+  // write_register(lora, REG_PAYLOAD_LENGTH, 24);
   // Set coding rate to 4/5
   lora_set_coding_rate(lora, LORA_CODING_RATE_4_5);
   // Set bandwidth
