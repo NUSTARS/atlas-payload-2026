@@ -1,7 +1,7 @@
-// bat-sensor.h
 #pragma once
 #include <Arduino.h>
-#include <Adafruit_INA219.h>
+#include <INA226.h>
+#include <Wire.h>
 
 
 struct BatteryData {

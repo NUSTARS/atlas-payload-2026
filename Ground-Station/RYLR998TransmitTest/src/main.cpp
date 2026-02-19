@@ -26,11 +26,11 @@ void setup() {
   // AT+PARAMETER=<SF>,<BW>,<CR>,<Preamble>
   //
   // SF7
-  // BW=125kHz (0)
+  // BW=125kHz (7)
   // CR=4/5 (1)
   // Preamble=8
 
-  sendCommand("AT+PARAMETER=7,0,1,8");
+  sendCommand("AT+PARAMETER=7,7,1,8");
 
   // Set frequency (example 915 MHz)
   sendCommand("AT+BAND=915000000");
@@ -49,9 +49,7 @@ void loop() {
     payload[i] = i;   // example data
   }
 
-  LORA.print("AT+SEND=2,24,");
-  LORA.write(payload, 24);
-  LORA.println();
+  sendCommand("AT+SEND=2,24,");
 
   delay(5000);
 }
