@@ -22,7 +22,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "lora_sx1276.h"
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,10 +45,8 @@ SPI_HandleTypeDef hspi2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-lora_sx1276 lora;
 uint8_t buf[100] = {0};
 uint8_t buf_len = 100;
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,24 +95,34 @@ int main(void)
   MX_SPI2_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t res = lora_init(&lora, &hspi2, GPIOB, 12, LORA_BASE_FREQUENCY_US);
-    if (res != LORA_OK) {
-  	  return 1;
-    }
+  lora_sx1276 lora;
+
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+  HAL_Delay(.1);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
+  HAL_Delay(5);
+
+  uint8_t res = lora_init(&lora, &hspi2, GPIOB, GPIO_PIN_6, LORA_BASE_FREQUENCY_US);
+
+  if (res != LORA_OK) {
+	  printf("LoRa initialization failed!\r\n");
+  }
+  else {
+	  uint8_t ver = lora_version(&lora);
+	  printf("LoRa version: 0x%02X (%u)\r\n", ver, ver);
+  }
 
   lora_mode_receive_continuous(&lora);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	if (lora_is_packet_available(&lora)) {
-		lora_receive_packet(&lora, buf, buf_len, NULL);
-		int8_t rssi = lora_packet_rssi(&lora);
-		uint8_t snr = lora_packet_snr(&lora);
-		HAL_UART_Transmit(&huart2, buf, buf_len, HAL_MAX_DELAY);
+	uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
+
+	if (res == LORA_OK && len > 0) {
+		HAL_UART_Transmit(&huart2, buffer, len, HAL_MAX_DELAY);
 	}
     /* USER CODE END WHILE */
 
@@ -263,7 +270,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -278,8 +285,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  /*Configure GPIO pin : PB6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -291,7 +298,11 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+int _write(int fd, char* ptr, int len)
+{
+  HAL_UART_Transmit(&huart3, (uint8_t*) ptr, len, HAL_MAX_DELAY);
+  return len;
+}
 /* USER CODE END 4 */
 
 /**
