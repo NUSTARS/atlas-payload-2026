@@ -1,17 +1,11 @@
 #include <Arduino.h>
-#include <Wire.h>
-#include <Adafruit_BNO08x.h>
-
 
 #include <altimeter.h>
 #include <bat-sensor.h>
 #include <controls.h>
-#include <pi-communication.h>
-#include <bno-imu.hpp>
-#include "pi-communication-test.h"
-#include <altimeter.h>
-#include <KalmanFilter.h>
+#include "pi-communication.h"
 #include <imu.h>
+// #include <KalmanFilter.h>
 
 // DEFINES =========================================================================
 enum flight_phase {
@@ -35,116 +29,130 @@ flight_phase current_phase = ON_PAD;
 
 AltimeterData flight_data;
 
-KalmanFilter kf;
+// KalmanFilter kf;
 
 IMUData imu_data;
 
+BatteryData battery_data;
+
 // INTERRUPTS ======================================================================
-void controlInterrupt() {
-  // read data
-  uint8_t* buffer = {}; // FIXME need to get actual buffer of IMU data
-  imu_data = readIMU(buffer);
+// void controlInterrupt() {
+//   // read data
+//   uint8_t* buffer = {}; // FIXME need to get actual buffer of IMU data
+//   imu_data = readIMU(buffer);
 
-  // only continue if we are running controls
-  if (current_phase != RUN_CONTROLS) return;
-  // kalman filter    TODO determine if using doubles
-  double roll_heading = (double)imu_data.ypr[2]; 
-  double roll_velocity = (double)imu_data.angularRate[2];
-  // FIXME update timestep
-  kf.predict();
-  kf.update(roll_heading, roll_velocity);
-  Eigen::Vector3f x_hat = kf.state();
+//   // only continue if we are running controls
+//   if (current_phase != RUN_CONTROLS) return;
+//   // kalman filter    TODO determine if using doubles
+//   double roll_heading = (double)imu_data.ypr[2]; 
+//   double roll_velocity = (double)imu_data.angularRate[2];
+//   // FIXME update timestep
+//   kf.predict();
+//   kf.update(roll_heading, roll_velocity);
+//   Eigen::Vector3f x_hat = kf.state();
   
   
 
-
-  // get pid value
-  float pid_result = PIDControl((float)x_hat[0], (float)x_hat[1]);
-  // get feed-forward value
-  float ff_result = feedForwardControl((float)x_hat[2]);
-  // command motor
-  motorControl(pid_result + ff_result);
-}
+//   // get pid value
+//   float pid_result = PIDControl((float)x_hat[0], (float)x_hat[1]);
+//   // get feed-forward value
+//   float ff_result = feedForwardControl((float)x_hat[2]);
+//   // command motor
+//   motorControl(pid_result + ff_result);
+// }
 
 // SETUP ===========================================================================
-
 void setup() {
   Serial.begin(115200);
   delay(1500);
 
-  Wire.begin();                 // SDA=18, SCL=19 on Teensy 4.0
-  Wire.setClock(400000);        // Fast I2C
-
-  setup_slave();
-
-  Serial.println("set up slave");
+  // setup_slave();
+  // Serial.println("set up slave");
 
   // Initialize Altimeter
   bool success_alti_setup = initAltimeter();
-
   Serial.println("set up Altimeter!");
-
   if (!success_alti_setup) {
     while (1) {
       delay(200);
     }
   }
 
-  bool success_bno_setup = setup_bno();
+  // bool success_bno_setup = setup_bno();
+  // Serial.println("set up BNO!");
+  // if (!success_bno_setup) {
+  //   while (1) {
+  //     delay(200);
+  //   }
+  // }
 
-  Serial.println("set up BNO!");
-
-  if (!success_bno_setup) {
+  bool bat_sensor_setup = initBatSensor();
+  Serial.println("set up battery sensor!");
+  if (!bat_sensor_setup) {
     while (1) {
       delay(200);
     }
   }
-
 }
 
 // LOOP ============================================================================
 
 void loop() {
 
-  update_bno_values();
+  readBatSensor(battery_data);
+  Serial.print("Voltage: ");Serial.println(battery_data.voltage_v);
+  Serial.print("Current: ");Serial.println(battery_data.current_ma);
+  Serial.print("Power: ");Serial.println(battery_data.power_mw);
+  Serial.print("Load Voltage: ");Serial.println(battery_data.load_voltage_V);
+  Serial.println();
+
+
+  // update_bno_values();
   readAltimeter(flight_data);
+  Serial.print("Temp: ");Serial.println(flight_data.temp_C);
+  Serial.print("Pressure: ");Serial.println(flight_data.pressure_hPa);
+  Serial.print("Altitude: ");Serial.println(flight_data.altitude_m);
+  Serial.println();
 
-  static unsigned long prevSend = 0;
-  if (millis() - prevSend >= 10) { // 100 Hz packet publish
-    spi_set_imu_packet(get_acceleration(), get_gyro(), get_quat());
-    prevSend = millis();
-  }
 
-  switch (current_phase) {
+  delay(1000);
 
-    case ON_PAD:
-      if (flight_data.altitude_m > ON_PAD) {
-        current_phase = POST_BOOST;
-        Serial.println("LIFTOFF DETECTED");
-      }
+  // static unsigned long prevSend = 0;
+  // if (millis() - prevSend >= 10) { // 100 Hz packet publish
+  //   spi_set_imu_packet(get_acceleration(), get_gyro(), get_quat());
+  //   prevSend = millis();
+  // }
+
+  // switch (current_phase) {
+
+  //   case ON_PAD:
+  //     if (flight_data.altitude_m > ON_PAD) {
+  //       current_phase = POST_BOOST;
+  //       Serial.println("LIFTOFF DETECTED");
+  //     }
       
-    case POST_BOOST:
-      if (prev_altitude_m - flight_data.altitude_m > DESCENDING_ALTITUDE_DELTA_M ) {
-        current_phase = DESCENDING;
-      }
-      prev_altitude_m = flight_data.altitude_m;
+  //   case POST_BOOST:
+  //     if (prev_altitude_m - flight_data.altitude_m > DESCENDING_ALTITUDE_DELTA_M ) {
+  //       current_phase = DESCENDING;
+  //     }
+  //     prev_altitude_m = flight_data.altitude_m;
       
 
-    case DESCENDING:
-      if (flight_data.altitude_m < RUN_CONTROLS_THRESHOLD_M) {
-        current_phase = RUN_CONTROLS;
-        Serial.println("STARTING CONTROL SYSTEM");
-        // Trigger RPi to start capturing pictures
-      }
+  //   case DESCENDING:
+  //     if (flight_data.altitude_m < RUN_CONTROLS_THRESHOLD_M) {
+  //       current_phase = RUN_CONTROLS;
+  //       Serial.println("STARTING CONTROL SYSTEM");
+  //       // Trigger RPi to start capturing pictures
+  //     }
     
-    case RUN_CONTROLS:
-      if (flight_data.altitude_m  < LANDED_THRESHOLD_M) {
-        current_phase = LANDED;
-        Serial.println("LANDED");
-      }
-      // Insert final data handling
+  //   case RUN_CONTROLS:
+  //     if (flight_data.altitude_m  < LANDED_THRESHOLD_M) {
+  //       current_phase = LANDED;
+  //       Serial.println("LANDED");
+  //     }
+  //     // Insert final data handling
 
-  }
+  // }
 
 
 }

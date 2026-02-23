@@ -2,12 +2,16 @@
 
 INA226 INA(0x40); // or whatever i2c address it's at
 
+// initBatSensor: (void) -> (bool)
+// initializes the battery sensor
 bool initBatSensor() {
 	Wire.begin();
 	if (!INA.begin()) {
 		Serial.println("could not connect. Fix and Reboot");
+		return false;
 	}
 	INA.setMaxCurrentShunt(1, 0.002);
+	return true;
 }
 
 // readBatSensor: (void) -> (void)
