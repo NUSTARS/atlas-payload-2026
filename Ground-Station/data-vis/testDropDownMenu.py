@@ -21,7 +21,7 @@ from matplotlib.widgets import Button
 # --------------------------
 # Configuration
 # --------------------------
-COM_PORT = '/dev/cu.usbmodem103'       # change to your Nucleo COM port
+COM_PORT = '/dev/cu.usbmodem1103'       # change to your Nucleo COM port
 BAUD_RATE = 115200      # match STM32 UART baud rate
 TIMEOUT = 1             # seconds
 SHOW_GRAPHS = True      # set to True to show scrolling line plots
