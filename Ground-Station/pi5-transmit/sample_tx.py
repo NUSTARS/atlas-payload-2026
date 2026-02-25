@@ -48,8 +48,4 @@ if __name__ == "__main__":
             packed = pack_frame(frame)
             loralib.transmit(packed)
             count += 1
-            time.sleep(2.5)
-            
-
-
-
+            time.sleep(0.5)

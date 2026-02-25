@@ -1,47 +1,33 @@
-// altimeter.cpp
-//
-//
 #include "altimeter.h"
 
-Adafruit_BMP280 bmp;
+#define BMP5XX_CS_PIN 10
+
+Adafruit_BMP5xx bmp;
+
 // Sea level pressure in hPa
 float groundPressureHPa = 1013.25;
+
 // initAltimeter: (void) -> (void)
 // initializes the altimeter
 bool initAltimeter() {
-	if (!bmp.begin(0x47)){
-		Serial.println("Failed to connect sensor (Altimeter)");
+	if (!bmp.begin(BMP5XX_CS_PIN, &SPI)) {
+		Serial.println(F("Could not find a valid BMP5xx sensor, check wiring!"));
 		return false;
 	}
-	// High-performance settings for rocket/drone flight
-   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X4,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_1);  /* Standby time. */
-
-	
-
-	delay(100);
-    float totalPressure = 0;
-	int samples = 20;
-    for(int i = 0; i < samples; i++) {
-        totalPressure += (bmp.readPressure() / 100.0);
-        delay(10);
-    }
-    groundPressureHPa = totalPressure / 10.0;
-
-	Serial.println("Altimeter initialized successfully");
+	Serial.println(F("BMP5xx found!"));	
 	return true;
 }
 
 // readAltimeter: (void) -> float
 // reads the current altitude from the altimeter
 void readAltimeter(AltimeterData &data) {
+	// Data is ready, perform reading
+	if (!bmp.performReading()) {
+		return;
+	}
 
-	data.temp_C = bmp.readTemperature();
-	data.pressure_hPa = bmp.readPressure() / 100.0; // Convert Pa to hPa
-	// Hypsometric formula to calculate altitude from pressure
-	data.altitude_m = 44330.0 * (1.0 - pow(data.pressure_hPa / groundPressureHPa, 0.1903));
+	data.temp_C = bmp.temperature;
+	data.pressure_hPa = bmp.pressure; 
+	data.altitude_m = bmp.readAltitude(groundPressureHPa);
 }
 //If you want the altitude to start at 0.0 at the launch site, you should capture the ground pressure during setup()

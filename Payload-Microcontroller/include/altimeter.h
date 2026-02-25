@@ -2,7 +2,7 @@
 #pragma once 
 
 #include <Arduino.h>
-#include <Adafruit_BMP280.h>
+#include <Adafruit_BMP5xx.h>
 
 struct AltimeterData {
     float temp_C;
@@ -17,7 +17,9 @@ struct AltimeterData {
 // returns true in the event of success, false otherwise
 bool initAltimeter();
 
-
+//
 // read altimeter: (void) -> float
-// reads the current altitude from the altimeter
+//
+// fills in the data struct from the altimeter
+//
 void readAltimeter(AltimeterData &data);

@@ -143,14 +143,18 @@ int main(void)
 	    uint8_t res;
 
 	    uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
+	    // added for rylr
 	    if (res == LORA_OK && len > 0) {
-	    	for (int i = 0; i < len; i++) {
-	    		        printf("%02X ", buffer[i]);
-	    		    }
-	    		    printf("\r\n");
-//	        HAL_UART_Transmit(&huart2, buffer, len, HAL_MAX_DELAY);
+//	    	for (int i = 0; i < len; i++) {
+//	    		        printf("%02X ", buffer[i]);
+//	    		    }
+//	    		    printf("\r\n");
+	    	HAL_UART_Transmit(&huart2,
+	    		                    (uint8_t*)buffer,
+	    		                    numBytes * sizeof(int16_t),
+	    		                    100);
 	    }
-	    // SHOULD WE STILL RECEIVE IF THE BUFFER LENGTH IS DIFFERENT? WHAT TO DO THEN
+ 	    // SHOULD WE STILL RECEIVE IF THE BUFFER LENGTH IS DIFFERENT? WHAT TO DO THEN
 //	    HAL_UART_Transmit(&huart2,
 //	    	                    (uint8_t*)buffer,
 //	    	                    numBytes * sizeof(int16_t),
