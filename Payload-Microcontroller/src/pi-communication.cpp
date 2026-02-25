@@ -3,7 +3,6 @@
 
 
 static struct Packet packet = {
-    .magic_number = 0,
     .orientation = 0,
     .angular_velocity = 0,
     .gps_long = 0,
@@ -13,12 +12,13 @@ static struct Packet packet = {
     .battery_v = 0,
 };
 
+
 // Define ONCE in a .cpp (not in a header)
 SPISlave_T4<&SPI, SPI_8_BITS> mySPI;
 
 static constexpr uint8_t MAGIC[8]    = {0xA5,0x5A,0xC3,0x3C,0x9E,0xE9,0x11,0x42};
 static constexpr uint8_t VERSION     = 0x01;
-static constexpr uint8_t PAYLOAD_LEN = 40;
+static constexpr uint8_t PAYLOAD_LEN = sizeof(struct Packet);//40;
 static constexpr size_t  PKT_LEN     = 64;
 
 static uint8_t packet_active[PKT_LEN];
@@ -81,6 +81,24 @@ static inline const uint8_t* current_frame_ptr() {
     init = true; 
   }
   return packet_ready ? packet_active : blank;
+}
+
+void build_spi_buffer() {
+  uint8_t* p = packet_build;
+  memset(p, 0, PKT_LEN);
+
+  // copy the magic number
+  memcpy(p, MAGIC, 8);
+  // copy the packet struct data over
+  memcpy(&p[8], &packet, PAYLOAD_LEN);
+  // compute crc
+  uint32_t crc = crc32_compute(p, 8+PAYLOAD_LEN);
+  p[8+PAYLOAD_LEN] = crc;
+  // copy data to the active packet
+  noInterrupts();
+  memcpy(packet_active, packet_build, PKT_LEN);
+  packet_ready = true;
+  interrupts();
 }
 
 void spi_set_imu_packet(const float a[3], const float g[3], const float q[4]) {
