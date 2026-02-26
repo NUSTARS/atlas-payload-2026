@@ -120,6 +120,7 @@ int main(void)
 
   if (res != LORA_OK) {
 //      printf("LoRa init failed\r\n");
+	  lora_set_crc(&lora, 1);
   } else {
       uint8_t ver = lora_version(&lora);
 //      printf("LoRa Version: 0x%02X (%u)\r\n", ver, ver);
