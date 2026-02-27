@@ -724,9 +724,9 @@ uint8_t lora_init(lora_sx1276 *lora, SPI_HandleTypeDef *spi, GPIO_TypeDef *nss_p
   lora_mode_standby(lora);
   // MY CHANGES
   // Disable CRC for now, FOR TESTING RYLR IT'S ON
-  lora_set_crc(lora, 0);
+  lora_set_crc(lora, 1);
   // Set payload length to 24 bytes FOR TESTING RYLR IT'S ON
-  write_register(lora, REG_PAYLOAD_LENGTH, 24);
+  write_register(lora, REG_PAYLOAD_LENGTH, 29);
   // Set coding rate to 4/5
   lora_set_coding_rate(lora, LORA_CODING_RATE_4_5);
   // Set bandwidth

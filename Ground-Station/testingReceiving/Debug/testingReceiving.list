@@ -21,31 +21,31 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
   8 .data         0000000c  20000000  08003d68  00005000  2**2
                   CONTENTS, ALLOC, LOAD, DATA
-  9 .bss          000000d8  2000000c  08003d74  0000500c  2**2
+  9 .bss          000000e0  2000000c  08003d74  0000500c  2**2
                   ALLOC
- 10 ._user_heap_stack 00000604  200000e4  08003d74  000050e4  2**0
+ 10 ._user_heap_stack 00000604  200000ec  08003d74  000050ec  2**0
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  0000500c  2**0
                   CONTENTS, READONLY
- 12 .debug_info   0000aa67  00000000  00000000  0000503c  2**0
+ 12 .debug_info   0000aa2e  00000000  00000000  0000503c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_abbrev 00001a54  00000000  00000000  0000faa3  2**0
+ 13 .debug_abbrev 00001a54  00000000  00000000  0000fa6a  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_aranges 00000a18  00000000  00000000  000114f8  2**3
+ 14 .debug_aranges 00000a18  00000000  00000000  000114c0  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_rnglists 000007c3  00000000  00000000  00011f10  2**0
+ 15 .debug_rnglists 000007c3  00000000  00000000  00011ed8  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_macro  00015c8f  00000000  00000000  000126d3  2**0
+ 16 .debug_macro  00015c8f  00000000  00000000  0001269b  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0000b228  00000000  00000000  00028362  2**0
+ 17 .debug_line   0000b228  00000000  00000000  0002832a  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000876dd  00000000  00000000  0003358a  2**0
+ 18 .debug_str    000876cc  00000000  00000000  00033552  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000043  00000000  00000000  000bac67  2**0
+ 19 .comment      00000043  00000000  00000000  000bac1e  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00002964  00000000  00000000  000bacac  2**2
+ 20 .debug_frame  00002964  00000000  00000000  000bac64  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 00000080  00000000  00000000  000bd610  2**0
+ 21 .debug_line_str 00000080  00000000  00000000  000bd5c8  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -1770,13 +1770,13 @@ uint8_t lora_init(lora_sx1276 *lora, SPI_HandleTypeDef *spi, GPIO_TypeDef *nss_p
  8000d1c:	f7ff fd40 	bl	80007a0 <lora_mode_standby>
   // MY CHANGES
   // Disable CRC for now, FOR TESTING RYLR IT'S ON
-  lora_set_crc(lora, 0);
- 8000d20:	2100      	movs	r1, #0
+  lora_set_crc(lora, 1);
+ 8000d20:	2101      	movs	r1, #1
  8000d22:	68f8      	ldr	r0, [r7, #12]
  8000d24:	f7ff fe5c 	bl	80009e0 <lora_set_crc>
   // Set payload length to 24 bytes FOR TESTING RYLR IT'S ON
-  write_register(lora, REG_PAYLOAD_LENGTH, 24);
- 8000d28:	2218      	movs	r2, #24
+  write_register(lora, REG_PAYLOAD_LENGTH, 29);
+ 8000d28:	221d      	movs	r2, #29
  8000d2a:	2122      	movs	r1, #34	@ 0x22
  8000d2c:	68f8      	ldr	r0, [r7, #12]
  8000d2e:	f7ff fc20 	bl	8000572 <write_register>
@@ -1904,7 +1904,7 @@ int main(void)
  8000dd0:	1cfb      	adds	r3, r7, #3
  8000dd2:	9300      	str	r3, [sp, #0]
  8000dd4:	f242 7310 	movw	r3, #10000	@ 0x2710
- 8000dd8:	2218      	movs	r2, #24
+ 8000dd8:	221d      	movs	r2, #29
  8000dda:	490e      	ldr	r1, [pc, #56]	@ (8000e14 <main+0xb4>)
  8000ddc:	f7ff ff0d 	bl	8000bfa <lora_receive_packet_blocking>
  8000de0:	4603      	mov	r3, r0
@@ -1923,7 +1923,7 @@ int main(void)
 //	    		    printf("\r\n");
 	    	HAL_UART_Transmit(&huart2,
  8000df0:	2364      	movs	r3, #100	@ 0x64
- 8000df2:	2218      	movs	r2, #24
+ 8000df2:	221d      	movs	r2, #29
  8000df4:	4907      	ldr	r1, [pc, #28]	@ (8000e14 <main+0xb4>)
  8000df6:	4808      	ldr	r0, [pc, #32]	@ (8000e18 <main+0xb8>)
  8000df8:	f002 fbae 	bl	8003558 <HAL_UART_Transmit>
@@ -2938,7 +2938,7 @@ LoopFillZerobss:
   ldr r2, =_sbss
  8001304:	2000000c 	.word	0x2000000c
   ldr r4, =_ebss
- 8001308:	200000e4 	.word	0x200000e4
+ 8001308:	200000ec 	.word	0x200000ec
 
 0800130c <ADC_IRQHandler>:
  * @retval None       
@@ -3101,7 +3101,7 @@ __weak void HAL_IncTick(void)
  80013d0:	4770      	bx	lr
  80013d2:	bf00      	nop
  80013d4:	20000008 	.word	0x20000008
- 80013d8:	200000e0 	.word	0x200000e0
+ 80013d8:	200000e8 	.word	0x200000e8
 
 080013dc <HAL_GetTick>:
   * @note This function is declared as __weak to be overwritten in case of other 
@@ -3121,7 +3121,7 @@ __weak uint32_t HAL_GetTick(void)
  80013e8:	f85d 7b04 	ldr.w	r7, [sp], #4
  80013ec:	4770      	bx	lr
  80013ee:	bf00      	nop
- 80013f0:	200000e0 	.word	0x200000e0
+ 80013f0:	200000e8 	.word	0x200000e8
 
 080013f4 <HAL_Delay>:
   *       implementations in user file.

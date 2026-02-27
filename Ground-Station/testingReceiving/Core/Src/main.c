@@ -33,7 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define numBytes 12
+#define numBytes 29
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,12 +48,10 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-int16_t values[12];
-
 // Receive buffer
-uint8_t buffer[24];
+uint8_t buffer[numBytes];
 
-uint8_t buf_len = 24;
+uint8_t buf_len = numBytes;
 
 /* USER CODE END PV */
 
@@ -152,7 +150,7 @@ int main(void)
 //	    		    printf("\r\n");
 	    	HAL_UART_Transmit(&huart2,
 	    		                    (uint8_t*)buffer,
-	    		                    numBytes * sizeof(int16_t),
+	    		                    numBytes,
 	    		                    100);
 	    }
  	    // SHOULD WE STILL RECEIVE IF THE BUFFER LENGTH IS DIFFERENT? WHAT TO DO THEN

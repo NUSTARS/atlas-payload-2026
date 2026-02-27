@@ -6,29 +6,57 @@ from datetime import datetime
 import os
 import struct
 from matplotlib.widgets import Button
+import serial.tools.list_ports
+import tkinter as tk
+from tkinter import ttk
 
-# THINGS WE ARE READING: 
-# ALTITUDE (plotted) 1 byte
-# ORIENTATION IN ALL 3 AXES (numbers & plot) 3 bytes
-# LONGITUDE AND LATITUDE (number) 2 bytes
-# VELOCITY IN ALL 3 AXES (plotted) 3 bytes
+
+# ALTITUDE (plotted) 2 bytes
+# ORIENTATION IN ALL 3 AXES (numbers & plot) 2*3=6 bytes
+# LONGITUDE AND LATITUDE (number) 2*4=8 bytes
+# VELOCITY IN ALL 3 AXES (plotted) 6 bytes
 # STATE (number) 1 byte
 # BATTERY VOLTAGE (number) 1 byte
 # FRAME COUNTER (number) 1 byte
-
-# 1+3+2+3+1+1+1 = 12 bytes total, can change if needed
+# TIME SINCE STARTUP (number) 4 bytes 
+# 2+6+8+6+1+1+1+4 = 29 bytes total
 
 # --------------------------
 # Configuration
 # --------------------------
-COM_PORT = '/dev/cu.usbmodem1103'       # change to your Nucleo COM port
+ports = [port.device for port in serial.tools.list_ports.comports()]
+
+selected_port = None
+
+def start():
+    global selected_port
+    selected_port = combo.get()
+    root.destroy()
+
+# Create selection window
+root = tk.Tk()
+root.title("Select COM Port")
+
+tk.Label(root, text="Choose COM Port:").pack(pady=5)
+
+combo = ttk.Combobox(root, values=ports)
+combo.pack(pady=5)
+
+tk.Button(root, text="Start", command=start).pack(pady=10)
+
+root.mainloop()
+
+# Now selected_port is chosen BEFORE plot starts
+print("Selected:", selected_port)
+
+COM_PORT = selected_port      # change to your Nucleo COM port
 BAUD_RATE = 115200      # match STM32 UART baud rate
 TIMEOUT = 1             # seconds
 SHOW_GRAPHS = True      # set to True to show scrolling line plots
 SAVE_DATA = False       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
 
-numBytes = 12
-frameSize = numBytes*2
+numVars = 13
+frameSize = 29
 
 altitudePlot = 0
 orientationPlot = [1, 2, 3] # and numbers!
@@ -37,18 +65,19 @@ velocityPlot = [6, 7, 8]
 state = [9]
 batteryVoltage = [10]
 frameCounter = [11]
+timeSinceStartup = [12]
 
-statesInText = ["Standby", 'Launching', "Apogee(?)"]
+statesInText = ["Standby", 'Launching', "Apogee"]
 
-bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter
+bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup
 
 # --------------------------
 # Functions
 # --------------------------
 def parse_message(msg):
-    if len(msg) != 24:
+    if len(msg) != frameSize:
         return None
-    return struct.unpack('<12h', msg)  # little-endian, 12 signed int16
+    return struct.unpack('<Hhhh' + 'ff' + 'hhh' + 'BBBf', msg)  # same packing as in sample tx
 
 # --------------------------
 # Setup Serial
@@ -98,14 +127,16 @@ ax_vel.legend(['Vx', 'Vy', 'Vz'], loc='upper left')
 number_titles = [
     'Orientation X', 'Orientation Y', 'Orientation Z',
     'Longitude', 'Latitude',
-    'State', 'Battery Voltage', 'Frame Counter'
+    'State', 'Battery Voltage', 'Frame Counter', "Time Since Startup"
 ]
 
-y_positions = [0.9, 0.8, 0.7, 0.55, 0.45, 0.3, 0.2, 0.1]
+y_positions = [0.92, 0.82, 0.72, 
+               0.60, 0.52, 
+               0.40, 0.30, 0.20, 0.10]
 
 colors = ['red', 'green', 'blue', 
           'black', 'black', 
-          'black', 'green', 'black']
+          'black', 'green', 'black', 'black']
 
 number_texts = []
 title_texts = []
@@ -159,7 +190,8 @@ if SAVE_DATA == True:
         "VelX", "VelY", "VelZ",
         "State",
         "Battery",
-        "Frame"
+        "Frame",
+        "TimeSinceStartup"
     ])
 
 # --------------------------
@@ -173,8 +205,11 @@ try:
             continue
 
         ch_values = parse_message(rowmsg)
-        if len(ch_values) != numBytes:
+        if len(ch_values) != numVars:
             continue
+
+        # if abs(ch_values[orientationPlot[0]]) > 1000:
+        #     continue
 
         battery_value = ch_values[batteryVoltage[0]]
 
@@ -196,7 +231,8 @@ try:
                 ch_values[6], ch_values[7], ch_values[8],
                 ch_values[9],
                 ch_values[10],
-                ch_values[11]
+                ch_values[11],
+                ch_values[12]
             ])
 
             csv_file.flush()
@@ -215,9 +251,6 @@ try:
                     txt.set_text(f"Unknown ({state_index})")
             else:
                 txt.set_text(str(ch_values[idx]))
-
-        # for txt, idx in zip(number_texts, bigNumberDisplayOnly):
-        #     txt.set_text(str(ch_values[idx]))
 
         # -----------------------
         # Update Altitude Plot
