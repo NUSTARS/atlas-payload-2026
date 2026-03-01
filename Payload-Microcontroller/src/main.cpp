@@ -24,6 +24,7 @@ enum flight_phase {
 
 #define BUZZER_PIN 17
 
+#define CONTROL_PERIOD_us 10 // period of the control interrupt in microseconds
 
 // GLOBALS =========================================================================
 float prev_altitude_m = 0.0; // for use in check for advance to DESCENDING state
@@ -38,31 +39,36 @@ IMUData imu_data;
 
 BatteryData battery_data;
 
+IntervalTimer control_timer;
 // INTERRUPTS ======================================================================
-// void controlInterrupt() {
-//   // read data
-//   uint8_t* buffer = {}; // FIXME need to get actual buffer of IMU data
-//   imu_data = readIMU(buffer);
+void controlInterrupt() {
+  // pull imu pin high, wait for data to come
 
-//   // only continue if we are running controls
-//   if (current_phase != RUN_CONTROLS) return;
-//   // kalman filter    TODO determine if using doubles
-//   double roll_heading = (double)imu_data.ypr[2]; 
-//   double roll_velocity = (double)imu_data.angularRate[2];
-//   // FIXME update timestep
-//   kf.predict();
-//   kf.update(roll_heading, roll_velocity);
-//   Eigen::Vector3f x_hat = kf.state();
+  // read data
+  
+  // // read data
+  // uint8_t* buffer = {}; // FIXME need to get actual buffer of IMU data
+  // imu_data = readIMU(buffer);
+
+  // // only continue if we are running controls
+  // if (current_phase != RUN_CONTROLS) return;
+  // // kalman filter    TODO determine if using doubles
+  // double roll_heading = (double)imu_data.ypr[2]; 
+  // double roll_velocity = (double)imu_data.angularRate[2];
+  // // FIXME update timestep
+  // kf.predict();
+  // kf.update(roll_heading, roll_velocity);
+  // Eigen::Vector3f x_hat = kf.state();
   
   
 
-//   // get pid value
-//   float pid_result = PIDControl((float)x_hat[0], (float)x_hat[1]);
-//   // get feed-forward value
-//   float ff_result = feedForwardControl((float)x_hat[2]);
-//   // command motor
-//   motorControl(pid_result + ff_result);
-// }
+  // // get pid value
+  // float pid_result = PIDControl((float)x_hat[0], (float)x_hat[1]);
+  // // get feed-forward value
+  // float ff_result = feedForwardControl((float)x_hat[2]);
+  // // command motor
+  // motorControl(pid_result + ff_result);
+}
 
 // SETUP ===========================================================================
 void setup() {
@@ -88,6 +94,12 @@ void setup() {
       delay(200);
     }
   }
+  
+  // Initialize IMU
+
+  // Start IMU data collection + control interrupt
+  control_timer.priority(0);
+  control_timer.begin(controlInterrupt, CONTROL_PERIOD_us);
 
 
   // call buzzer
@@ -96,6 +108,8 @@ void setup() {
 
   delay(500);
   digitalWrite(BUZZER_PIN, LOW);
+
+  
 
 
   // bool success_bno_setup = setup_bno();
