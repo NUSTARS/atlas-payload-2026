@@ -19,16 +19,16 @@
 //
 //      Total: 58 bytes + 6 bytes -> padding 64 bytes
 
-struct __attribute__((packed)) Packet { // 41 bytes + 8 bytes for header
+struct __attribute__((packed)) Packet { // 49 bytes + 8 bytes for header
     float orientation[3]; // 12 bytes
     float angular_velocity[3]; // 12 bytes
-    float gps_long; // 4 bytes
-    float gps_lat;  // 4 bytes
+    double gps_long; // 8 bytes
+    double gps_lat;  // 8 bytes
     uint8_t state;  // 1 byte
     float altitude_m; // 4 bytes
     float battery_v; // 4 bytes
 };
-static_assert(sizeof(Packet)==41, "...");
+static_assert(sizeof(Packet)==49, "...");
 
 void setup_slave();
 
@@ -45,5 +45,5 @@ void spi_packet_set_altitude(const float altitude);
 void spi_packet_set_state(const uint8_t state);
 
 // sets the orientation and angular velocity fields of the packet struct
-void spi_packet_set_imu(const float (&orientation)[3], const float (&angular_velocity)[3]);
+void spi_packet_set_imu(const float (&orientation)[3], const float (&angular_velocity)[3], const double (&latLonAlt)[3]);
 

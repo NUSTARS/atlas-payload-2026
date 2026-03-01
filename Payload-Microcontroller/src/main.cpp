@@ -5,7 +5,7 @@
 #include <controls.h>
 #include "pi-communication.h"
 #include <imu.h>
-// #include <KalmanFilter.h>
+#include <KalmanFilter.h>
 
 // DEFINES =========================================================================
 enum flight_phase {
@@ -33,7 +33,7 @@ flight_phase current_phase = ON_PAD;
 
 AltimeterData flight_data;
 
-// KalmanFilter kf;
+KalmanFilter kf;
 
 IMUData imu_data;
 
@@ -45,29 +45,31 @@ void controlInterrupt() {
   // pull imu pin high, wait for data to come
 
   // read data
-  
-  // // read data
-  // uint8_t* buffer = {}; // FIXME need to get actual buffer of IMU data
-  // imu_data = readIMU(buffer);
 
-  // // only continue if we are running controls
-  // if (current_phase != RUN_CONTROLS) return;
-  // // kalman filter    TODO determine if using doubles
-  // double roll_heading = (double)imu_data.ypr[2]; 
-  // double roll_velocity = (double)imu_data.angularRate[2];
-  // // FIXME update timestep
-  // kf.predict();
-  // kf.update(roll_heading, roll_velocity);
-  // Eigen::Vector3f x_hat = kf.state();
-  
-  
+  // read data
+  uint8_t* buffer = {}; // FIXME need to get actual buffer of IMU data
+  imu_data = readIMU(buffer);
 
-  // // get pid value
-  // float pid_result = PIDControl((float)x_hat[0], (float)x_hat[1]);
-  // // get feed-forward value
-  // float ff_result = feedForwardControl((float)x_hat[2]);
-  // // command motor
-  // motorControl(pid_result + ff_result);
+  spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
+
+  
+  // kalman filter
+  float roll_heading = imu_data.ypr[2]; 
+  float roll_velocity = imu_data.angularRate[2];
+  // FIXME update timestep
+  kf.predict();
+  kf.update(roll_heading, roll_velocity);
+  Eigen::Vector3f x_hat = kf.state();
+  
+  // only continue if we are running controls
+  if (current_phase != RUN_CONTROLS) return;
+
+  // get pid value
+  float pid_result = PIDControl(x_hat[0], x_hat[1]);
+  // get feed-forward value
+  float ff_result = feedForwardControl(x_hat[2]);
+  // command motor
+  motorControl(pid_result + ff_result);
 }
 
 // SETUP ===========================================================================
@@ -96,6 +98,16 @@ void setup() {
   }
   
   // Initialize IMU
+
+  // Initialize Kalman Filter
+  float dt0 = CONTROL_PERIOD_us * 1e-6f;
+  // FIXME read imu and store to 
+  float phi0 = 0.0;
+  float omega0 = 0.0;
+  // FIXME convert units
+  Eigen::Matrix3f P0;
+
+
 
   // Start IMU data collection + control interrupt
   control_timer.priority(0);

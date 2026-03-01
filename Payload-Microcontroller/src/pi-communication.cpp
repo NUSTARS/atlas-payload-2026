@@ -26,10 +26,10 @@ SPISlave_T4<&SPI, SPI_8_BITS> mySPI;
 
 static constexpr uint8_t MAGIC[8]    = {0xA5,0x5A,0xC3,0x3C,0x9E,0xE9,0x11,0x42};
 static constexpr uint8_t VERSION     = 0x01;
-static constexpr size_t  PKT_LEN     = 64;
+static constexpr size_t  PKT_LEN     = 72; // 64
 
 static constexpr size_t  OFF_PAYLOAD = 16;
-static constexpr size_t  OFF_CRC = 60;
+static constexpr size_t  OFF_CRC = 68;
 
 static_assert(OFF_PAYLOAD + sizeof(Packet) <= OFF_CRC, "Packet too big for frame");
 static constexpr uint8_t PAYLOAD_LEN = (uint8_t)sizeof(Packet);
@@ -60,10 +60,12 @@ void spi_packet_set_state(const uint8_t state) {
 }
 
 // sets the orientation and angular velocity fields of the packet struct
-void spi_packet_set_imu(const float (&orientation)[3], const float (&angular_velocity)[3]) {
+void spi_packet_set_imu(const float (&orientation)[3], const float (&angular_velocity)[3], const double (&latLonAlt)[3]) {
     for (uint8_t i = 0; i < 3; i++) {
         packet.orientation[i] = orientation[i];
         packet.angular_velocity[i] = angular_velocity[i];
+        packet.gps_lat = (float)latLonAlt[0];
+        packet.gps_long = (float)latLonAlt[1];
     }
 }
 
