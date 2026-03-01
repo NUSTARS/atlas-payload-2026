@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <string.h>
 
+#define CS_PIN 10
+
 // 
 // Packet Message:
 //      - Magic Bytes (8 bytes)
@@ -17,7 +19,7 @@
 //
 //      Total: 58 bytes + 6 bytes -> padding 64 bytes
 
-struct Packet {
+struct __attribute__((packed)) Packet { // 41 bytes + 8 bytes for header
     float orientation[3]; // 12 bytes
     float angular_velocity[3]; // 12 bytes
     float gps_long; // 4 bytes
@@ -26,19 +28,22 @@ struct Packet {
     float altitude_m; // 4 bytes
     float battery_v; // 4 bytes
 };
+static_assert(sizeof(Packet)==41, "...");
 
 void setup_slave();
 
 // builds spi packet based on existing spi packet str
 void build_spi_buffer();
 
-void spi_set_packet(const float accel[3], const float gyro[3], const float quat[4]);
 // sets the voltage field of the spi packet struct
 void spi_packet_set_voltage(const float voltage);
+
 // sets the altitude field of the spi packet struct
 void spi_packet_set_altitude(const float altitude);
+
 // sets the state field fo the spi packet struct
 void spi_packet_set_state(const uint8_t state);
+
 // sets the orientation and angular velocity fields of the packet struct
-void spi_packet_set_imu_data(const float (&orientation)[3], const float (&angular_velocity)[3]);
+void spi_packet_set_imu(const float (&orientation)[3], const float (&angular_velocity)[3]);
 

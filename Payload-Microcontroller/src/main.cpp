@@ -15,11 +15,14 @@ enum flight_phase {
   RUN_CONTROLS,
   LANDED
 };
-// FIXME add correct thresholds
+
+
 #define POST_BOOST_THRESHOLD_M 50
 #define DESCENDING_ALTITUDE_DELTA_M 1234
 #define RUN_CONTROLS_THRESHOLD_M 300
 #define LANDED_THRESHOLD_M 10
+
+#define BUZZER_PIN 17
 
 
 // GLOBALS =========================================================================
@@ -66,8 +69,16 @@ void setup() {
   Serial.begin(115200);
   delay(1500);
 
-  // setup_slave();
-  // Serial.println("set up slave");
+  setup_slave();
+  Serial.println("set up slave");
+
+  bool bat_sensor_setup = initBatSensor();
+  Serial.println("set up battery sensor!");
+  if (!bat_sensor_setup) {
+    while (1) {
+      delay(200);
+    }
+  }
 
   // Initialize Altimeter
   bool success_alti_setup = initAltimeter();
@@ -78,6 +89,15 @@ void setup() {
     }
   }
 
+
+  // call buzzer
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, HIGH);
+
+  delay(500);
+  digitalWrite(BUZZER_PIN, LOW);
+
+
   // bool success_bno_setup = setup_bno();
   // Serial.println("set up BNO!");
   // if (!success_bno_setup) {
@@ -85,43 +105,45 @@ void setup() {
   //     delay(200);
   //   }
   // }
-
-  bool bat_sensor_setup = initBatSensor();
-  Serial.println("set up battery sensor!");
-  if (!bat_sensor_setup) {
-    while (1) {
-      delay(200);
-    }
-  }
 }
 
 // LOOP ============================================================================
 
-void loop() {
 
+
+void loop() {
   readBatSensor(battery_data);
-  Serial.print("Voltage: ");Serial.println(battery_data.voltage_v);
-  Serial.print("Current: ");Serial.println(battery_data.current_ma);
-  Serial.print("Power: ");Serial.println(battery_data.power_mw);
-  Serial.print("Load Voltage: ");Serial.println(battery_data.load_voltage_V);
+  Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
+  Serial.print("Current (mA): ");Serial.println(battery_data.current_ma);
+  Serial.print("Power (mW): ");Serial.println(battery_data.power_mw);
+  Serial.print("Load Voltage (V): ");Serial.println(battery_data.load_voltage_V);
   Serial.println();
 
 
   // update_bno_values();
+
   readAltimeter(flight_data);
-  Serial.print("Temp: ");Serial.println(flight_data.temp_C);
-  Serial.print("Pressure: ");Serial.println(flight_data.pressure_hPa);
-  Serial.print("Altitude: ");Serial.println(flight_data.altitude_m);
+  Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
+  Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
+  Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
   Serial.println();
 
 
-  delay(1000);
+  static unsigned long prevSend = 0;
+  if (millis() - prevSend >= 10) { // 100 Hz packet publish
+    
+    // set values into packet 
+    spi_packet_set_voltage(battery_data.voltage_v);
 
-  // static unsigned long prevSend = 0;
-  // if (millis() - prevSend >= 10) { // 100 Hz packet publish
-  //   spi_set_imu_packet(get_acceleration(), get_gyro(), get_quat());
-  //   prevSend = millis();
-  // }
+    spi_packet_set_altitude(flight_data.altitude_m);
+    
+    spi_packet_set_state(current_phase);
+
+    // build packet
+    build_spi_buffer();
+
+    prevSend = millis();
+  }
 
   // switch (current_phase) {
 
@@ -156,3 +178,4 @@ void loop() {
 
 
 }
+

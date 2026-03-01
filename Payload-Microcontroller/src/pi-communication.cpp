@@ -12,19 +12,37 @@ static struct Packet packet = {
     .battery_v = 0,
 };
 
+    // float orientation[3]; // 12 bytes
+    // float angular_velocity[3]; // 12 bytes
+    // float gps_long; // 4 bytes
+    // float gps_lat;  // 4 bytes
+    // uint8_t state;  // 1 byte
+    // float altitude_m; // 4 bytes
+    // float battery_v; // 4 bytes
+
 
 // Define ONCE in a .cpp (not in a header)
 SPISlave_T4<&SPI, SPI_8_BITS> mySPI;
 
 static constexpr uint8_t MAGIC[8]    = {0xA5,0x5A,0xC3,0x3C,0x9E,0xE9,0x11,0x42};
 static constexpr uint8_t VERSION     = 0x01;
-static constexpr uint8_t PAYLOAD_LEN = sizeof(struct Packet);//40;
 static constexpr size_t  PKT_LEN     = 64;
+
+static constexpr size_t  OFF_PAYLOAD = 16;
+static constexpr size_t  OFF_CRC = 60;
+
+static_assert(OFF_PAYLOAD + sizeof(Packet) <= OFF_CRC, "Packet too big for frame");
+static constexpr uint8_t PAYLOAD_LEN = (uint8_t)sizeof(Packet);
 
 static uint8_t packet_active[PKT_LEN];
 static uint8_t packet_build[PKT_LEN];
 static volatile bool     packet_ready = false;
 static volatile uint32_t seqno        = 0;
+
+static volatile bool cs_fell = false;   // set by CS interrupt
+static void isr_cs_falling() {
+  cs_fell = true;
+}
 
 // sets the voltage field of the spi packet struct
 void spi_packet_set_voltage(const float voltage) {
@@ -65,12 +83,17 @@ static uint32_t crc32_compute(const uint8_t* p, size_t n) {
 
 static void build_blank_frame(uint8_t out[PKT_LEN]) {
   memset(out, 0, PKT_LEN);
-  memcpy(out, MAGIC, 8);
+  memcpy(&out[0], MAGIC, 8);
   out[8] = VERSION;
   out[9] = PAYLOAD_LEN;
+  out[10] = 0;
+  out[11] = 0;
 
-  uint32_t crc = crc32_compute(out, 60);
-  memcpy(&out[60], &crc, 4); // little-endian on Teensy
+  uint32_t s = 0;
+  memcpy(&out[12], &s, 4);
+
+  uint32_t crc = crc32_compute(out, OFF_CRC);
+  memcpy(&out[OFF_CRC], &crc, 4);
 }
 
 static inline const uint8_t* current_frame_ptr() {
@@ -87,37 +110,19 @@ void build_spi_buffer() {
   uint8_t* p = packet_build;
   memset(p, 0, PKT_LEN);
 
-  // copy the magic number
-  memcpy(p, MAGIC, 8);
-  // copy the packet struct data over
-  memcpy(&p[8], &packet, PAYLOAD_LEN);
-  // compute crc
-  uint32_t crc = crc32_compute(p, 8+PAYLOAD_LEN);
-  p[8+PAYLOAD_LEN] = crc;
-  // copy data to the active packet
-  noInterrupts();
-  memcpy(packet_active, packet_build, PKT_LEN);
-  packet_ready = true;
-  interrupts();
-}
-
-void spi_set_imu_packet(const float a[3], const float g[3], const float q[4]) {
-  uint8_t* p = packet_build;
-  memset(p, 0, PKT_LEN);
-
-  memcpy(p, MAGIC, 8);
+  memcpy(&p[0], MAGIC, 8);
   p[8] = VERSION;
   p[9] = PAYLOAD_LEN;
+  p[10] = 0;
+  p[11] = 0;
 
   uint32_t s = seqno++;
   memcpy(&p[12], &s, 4);
 
-  memcpy(&p[16], a, 3 * sizeof(float));
-  memcpy(&p[28], g, 3 * sizeof(float));
-  memcpy(&p[40], q, 4 * sizeof(float));
+  memcpy(&p[OFF_PAYLOAD], &packet, sizeof(Packet));
 
-  uint32_t crc = crc32_compute(p, 60);
-  memcpy(&p[60], &crc, 4);
+  uint32_t crc = crc32_compute(p, OFF_CRC);
+  memcpy(&p[OFF_CRC], &crc, 4);
 
   noInterrupts();
   memcpy(packet_active, packet_build, PKT_LEN);
@@ -125,11 +130,35 @@ void spi_set_imu_packet(const float a[3], const float g[3], const float q[4]) {
   interrupts();
 }
 
+
+// void spi_set_imu_packet(const float a[3], const float g[3], const float q[4]) {
+//   uint8_t* p = packet_build;
+//   memset(p, 0, PKT_LEN);
+
+//   memcpy(p, MAGIC, 8);
+//   p[8] = VERSION;
+//   p[9] = PAYLOAD_LEN;
+
+//   uint32_t s = seqno++;
+//   memcpy(&p[12], &s, 4);
+
+//   memcpy(&p[16], a, 3 * sizeof(float));
+//   memcpy(&p[28], g, 3 * sizeof(float));
+//   memcpy(&p[40], q, 4 * sizeof(float));
+
+//   uint32_t crc = crc32_compute(p, 60);
+//   memcpy(&p[60], &crc, 4);
+
+//   noInterrupts();
+//   memcpy(packet_active, packet_build, PKT_LEN);
+//   packet_ready = true;
+//   interrupts();
+// }
+
 // -----------------------------
 // Streaming TX state (ISR-owned)
 // -----------------------------
-static volatile uint8_t tx_idx     = 0;
-static volatile bool    in_txn_isr = false;
+static volatile uint8_t tx_idx = 0;
 
 /*
   IMPORTANT (library behavior):
@@ -139,43 +168,22 @@ static volatile bool    in_txn_isr = false;
   - Do CS edge detect inside the ISR so we don't miss it due to loop timing.
 */
 static void on_spi_rx() {
-  const bool cs_active = mySPI.active(); // true while CS asserted
-
-  // Start of transaction (CS just asserted)
-  if (cs_active && !in_txn_isr) {
-    in_txn_isr = true;
-    tx_idx = 0;
-
-    // Preload first byte so the *next* clock returns frame[0].
-    // Pi should clock 65 bytes and drop the first received byte.
-    const uint8_t* frame0 = current_frame_ptr();
-    mySPI.pushr(frame0[tx_idx]);
-    tx_idx = 1;
-  }
-  // End of transaction (CS deasserted)
-  else if (!cs_active && in_txn_isr) {
-    in_txn_isr = false;
-    // no other action needed
-  }
-
-  // Consume one RX byte (Pi sends dummy)
   (void)mySPI.popr();
 
-  // Queue next byte for the next clock
-  const uint8_t* frame = current_frame_ptr();
+  const uint8_t* frame = current_frame_ptr();   // active frame or blank
   mySPI.pushr(frame[tx_idx]);
-  tx_idx = (uint8_t)((tx_idx + 1) & 0x3F); // wrap 0..63
+  tx_idx = (uint8_t)((tx_idx + 1) & 0x3F);      // wrap 0..63
 }
 
 void setup_slave() {
   mySPI.onReceive(on_spi_rx);
   mySPI.begin();
-  mySPI.swapPins();
+  mySPI.swapPins();          // you said swap must be true
 
-  // Safe default before first CS edge is observed
-  mySPI.pushr(MAGIC[0]);
-
-  // Reset ISR transaction state
   tx_idx = 0;
-  in_txn_isr = false;
+
+  // preload something so first clock returns a defined byte:
+  const uint8_t* frame0 = current_frame_ptr();
+  mySPI.pushr(frame0[0]);
+  tx_idx = 1;
 }
