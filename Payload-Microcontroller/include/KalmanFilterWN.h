@@ -11,11 +11,14 @@ class KalmanFilterWN {
         Eigen::Matrix<float, 3, 2> HT, PHT, K;
         Eigen::Matrix<float, 3, 1> x_hat;
 
-        float var_process;
-        float var_phi;
-        float var_omega;
-        float damping;
-        float accel_passthrough;
+        const float var_phi = 0.2f * 0.2f;
+        const float noise_density = 0.0035f; // deg/s/sqrt(Hz)
+        const float BW = 265.0f;
+        const float var_omega = noise_density * noise_density * BW;
+        const float var_process = 1e1f;
+        
+        const float damping = -0.1f;
+        const float accel_passthrough = 0.95f;
         bool initialized;
 
 public:
@@ -24,11 +27,6 @@ public:
 
     // using init function instead with kalman parameters and initial state + covariance matrix
     void init(
-        float var_process,
-        float var_phi,
-        float var_omega,
-        float damping,
-        float accel_passthrough,
         float dt0, 
         Eigen::Matrix<float,3,1>& x0, 
         Eigen::Matrix<float,3,3>& P0);

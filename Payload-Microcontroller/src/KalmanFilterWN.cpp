@@ -7,17 +7,12 @@ KalmanFilterWN::KalmanFilterWN() : initialized(false)
 }
 
 void KalmanFilterWN::init(
-    float var_process,
-    float var_phi,
-    float var_omega,
-    float damping,
-    float accel_passthrough,
     float dt0,
     Eigen::Matrix<float,3,1>& x0,
     Eigen::Matrix<float,3,3>& P0) {
         // IMPORTANT: this->... is critical
-        this->accel_passthrough = accel_passthrough;
-        this->damping = damping;
+        // this->accel_passthrough = accel_passthrough;
+        // this->damping = damping;
         I.setIdentity();
         H << 1.0f, 0.0f, 0.0f, // measurement model matix
             0.0f, 1.0f, 0.0f; // this basically converts x (state) to compare to measurements
