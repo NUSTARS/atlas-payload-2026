@@ -35,20 +35,30 @@ AltimeterData flight_data;
 
 KalmanFilter kf;
 
-IMUData imu_data;
+IMUData imu_data{};
+bool imu_data_valid = false;
+
+size_t IMU_FRAME_LEN = 88;
+uint8_t imu_rx_buf[IMU_FRAME_LEN];
+bool imu_frame_ready = false;
 
 BatteryData battery_data;
 
 IntervalTimer control_timer;
+
+void pollIMU() {
+  if (Serial1.available() >= IMU_FRAME_LEN) {
+    if (Serial1.peek() == 0xFA) {
+      Serial1.readBytes(imu_rx_buf, IMU_FRAME_LEN);
+      imu_frame_ready = true;
+    } else {
+      Serial1.read();
+    }
+  }
+}
 // INTERRUPTS ======================================================================
 void controlInterrupt() {
-  // pull imu pin high, wait for data to come
-
-  // read data
-
-  // read data
-  uint8_t* buffer = {}; // FIXME need to get actual buffer of IMU data
-  imu_data = readIMU(buffer);
+  if (!imu_data_valid) return;
 
   spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
 
@@ -98,6 +108,7 @@ void setup() {
   }
   
   // Initialize IMU
+  initIMU();
 
   // Initialize Kalman Filter
   float dt0 = CONTROL_PERIOD_us * 1e-6f;
@@ -138,6 +149,23 @@ void setup() {
 
 
 void loop() {
+  pollIMU();
+
+  if (imu_frame_ready) {
+    uint8_t frame_buf[IMU_FRAME_LEN];
+    noInterrupts();
+    memcpy(frame_buf, imu_rx_buf, IMU_FRAME_LEN);
+    imu_frame_ready = false;
+    interrupts();
+
+    IMUData parsed_imu = readIMU(frame_buf);
+
+    noInterrupts();
+    imu_data = parsed_imu;
+    imu_data_valid = true;
+    interrupts();
+  }
+
   readBatSensor(battery_data);
   Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
   Serial.print("Current (mA): ");Serial.println(battery_data.current_ma);
