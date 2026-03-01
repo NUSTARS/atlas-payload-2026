@@ -1,17 +1,36 @@
 // imu.h
 
-// initIMU: (int, int, int) -> (int)
+// initIMU: (int) -> (int)
 // initializes the IMU by writing ASCII commands over serial to the IMU
 // baudRate: the baud rate for serial communication, defaults at 115200
-// RXPin: the RX pin for serial communication
-// TXPin: the TX pin for serial communication
 // returns 1 on successful connection, 0 otherwise
-//int initIMU(int baudRate = 115200, int RXPin, int TXPin);
+int initIMU(int baudRate = 115200);
+struct IMUData {
+  bool hasTimeStartup = false;
+  uint64_t timeStartup = 0;
 
+  bool hasYpr = false;
+  float yaw = 0, pitch = 0, roll = 0;
 
-// readIMU: (int) -> (float*)
-// reads the asynchronous data stream from RX and returns a pointer to an array of floats
-float* readIMU();
+  bool hasAngularRate = false;
+  float angRateX = 0, angRateY = 0, angRateZ = 0;
+
+  bool hasAccel = false;
+  float accelX = 0, accelY = 0, accelZ = 0;
+
+  bool hasPosLla = false;
+  double lat = 0, lon = 0, alt = 0;
+
+  bool hasVelNed = false;
+  float velN = 0, velE = 0, velD = 0;
+
+  bool hasInsStatus = false;
+  uint16_t insStatus = 0;
+};
+
+// decode a full packet you already have in memory (unit-testable)
+bool decodeVNPacket(const uint8_t* data, size_t len, IMUData& out);
+
 
 // closeIMU: () -> (int)
 // closes the connection to the IMU
@@ -26,7 +45,10 @@ int IMUErrorCode();
 // sends an ASCII command over UART to the IMU
 void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000);
 
-void testbinary();
+// attachIMUTriggerISR: (uint8_t, void (*)()) -> (bool)
+// attaches an ISR that fires when the specified pin is pulled high
+// returns true if the pin supports interrupts and the ISR was attached
+bool attachIMUTriggerISR(uint8_t pin, void (*isr)());
 
 
 // Things we will have to do
@@ -45,18 +67,4 @@ void testbinary();
  *
  * == close function ==
  * close connection to IMU
- */
-
-
-
-//  other notes to self:
-/**
- * We should use coning and sculling if our control loop rate is a good bit less than the IMU rate (which it is)
- * look into binary outputs - maybe faster
- * make sure to do ahrs if gnss is not available (VNWRG 67)
- * In general I should be doing the 3.X basic config commands for all components on the VN
- * Also decide what to do about the SyncIn rate and skip
- * Gonna need to apply a reference frame transformation from the IMU body frame to the payload frame (User Manual 2.3.2, 2.3.3, 2.3.4)
- * Also HSI calibration
- * we want to low pass while not taking data
  */
