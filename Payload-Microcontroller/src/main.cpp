@@ -3,9 +3,10 @@
 #include <altimeter.h>
 #include <bat-sensor.h>
 #include <controls.h>
-#include "pi-communication.h"
-#include <imu.h>
-#include <KalmanFilter.h>
+#include <pi-communication.h>
+// #include <KalmanFilter.h>
+#include <bno-imu.hpp>
+// #include <imu.h>
 
 // DEFINES =========================================================================
 enum flight_phase {
@@ -33,12 +34,12 @@ flight_phase current_phase = ON_PAD;
 
 AltimeterData flight_data;
 
-KalmanFilter kf;
+// KalmanFilter kf;
 
-IMUData imu_data{};
+IMUData imu_data;
 bool imu_data_valid = false;
 
-size_t IMU_FRAME_LEN = 88;
+const size_t IMU_FRAME_LEN = 88;
 uint8_t imu_rx_buf[IMU_FRAME_LEN];
 bool imu_frame_ready = false;
 
@@ -46,41 +47,42 @@ BatteryData battery_data;
 
 IntervalTimer control_timer;
 
-void pollIMU() {
-  if (Serial1.available() >= IMU_FRAME_LEN) {
-    if (Serial1.peek() == 0xFA) {
-      Serial1.readBytes(imu_rx_buf, IMU_FRAME_LEN);
-      imu_frame_ready = true;
-    } else {
-      Serial1.read();
-    }
-  }
-}
+
+// void pollIMU() {
+//   if (Serial1.available() >= IMU_FRAME_LEN) {
+//     if (Serial1.peek() == 0xFA) {
+//       Serial1.readBytes(imu_rx_buf, IMU_FRAME_LEN);
+//       imu_frame_ready = true;
+//     } else {
+//       Serial1.read();
+//     }
+//   }
+// }
+
 // INTERRUPTS ======================================================================
-void controlInterrupt() {
-  if (!imu_data_valid) return;
+// void controlInterrupt() {
+//   if (!imu_data_valid) return;
 
-  spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
-
+//   spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
   
-  // kalman filter
-  float roll_heading = imu_data.ypr[2]; 
-  float roll_velocity = imu_data.angularRate[2];
-  // FIXME update timestep
-  kf.predict();
-  kf.update(roll_heading, roll_velocity);
-  Eigen::Vector3f x_hat = kf.state();
+//   // kalman filter
+//   float roll_heading = imu_data.ypr[2]; 
+//   float roll_velocity = imu_data.angularRate[2];
+//   // FIXME update timestep
+//   kf.predict();
+//   kf.update(roll_heading, roll_velocity);
+//   Eigen::Vector3f x_hat = kf.state();
   
-  // only continue if we are running controls
-  if (current_phase != RUN_CONTROLS) return;
+//   // only continue if we are running controls
+//   if (current_phase != RUN_CONTROLS) return;
 
-  // get pid value
-  float pid_result = PIDControl(x_hat[0], x_hat[1]);
-  // get feed-forward value
-  float ff_result = feedForwardControl(x_hat[2]);
-  // command motor
-  motorControl(pid_result + ff_result);
-}
+//   // get pid value
+//   float pid_result = PIDControl(x_hat[0], x_hat[1]);
+//   // get feed-forward value
+//   float ff_result = feedForwardControl(x_hat[2]);
+//   // command motor
+//   motorControl(pid_result + ff_result);
+// }
 
 // SETUP ===========================================================================
 void setup() {
@@ -88,7 +90,7 @@ void setup() {
   delay(1500);
 
   setup_slave();
-  Serial.println("set up slave");
+  Serial.println("set up teensy as slave");
 
   bool bat_sensor_setup = initBatSensor();
   Serial.println("set up battery sensor!");
@@ -106,23 +108,27 @@ void setup() {
       delay(200);
     }
   }
-  
+
   // Initialize IMU
-  initIMU();
+  bool success_bno_setup = initIMU();
+  Serial.println("set up BNO085!");
+  if (!success_bno_setup) {
+    while (1) {
+      delay(200);
+    }
+  }
 
   // Initialize Kalman Filter
-  float dt0 = CONTROL_PERIOD_us * 1e-6f;
-  // FIXME read imu and store to 
-  float phi0 = 0.0;
-  float omega0 = 0.0;
-  // FIXME convert units
-  Eigen::Matrix3f P0;
-
-
+  // float dt0 = CONTROL_PERIOD_us * 1e-6f;
+  // // FIXME read imu and store to 
+  // float phi0 = 0.0;
+  // float omega0 = 0.0;
+  // // FIXME convert units
+  // Eigen::Matrix3f P0;
 
   // Start IMU data collection + control interrupt
-  control_timer.priority(0);
-  control_timer.begin(controlInterrupt, CONTROL_PERIOD_us);
+  // control_timer.priority(0);
+  // control_timer.begin(controlInterrupt, CONTROL_PERIOD_us);
 
 
   // call buzzer
@@ -131,40 +137,26 @@ void setup() {
 
   delay(500);
   digitalWrite(BUZZER_PIN, LOW);
-
-  
-
-
-  // bool success_bno_setup = setup_bno();
-  // Serial.println("set up BNO!");
-  // if (!success_bno_setup) {
-  //   while (1) {
-  //     delay(200);
-  //   }
-  // }
 }
 
 // LOOP ============================================================================
-
-
-
 void loop() {
-  pollIMU();
+  // pollIMU();
 
-  if (imu_frame_ready) {
-    uint8_t frame_buf[IMU_FRAME_LEN];
-    noInterrupts();
-    memcpy(frame_buf, imu_rx_buf, IMU_FRAME_LEN);
-    imu_frame_ready = false;
-    interrupts();
+  // if (imu_frame_ready) {
+  //   uint8_t frame_buf[IMU_FRAME_LEN];
+  //   noInterrupts();
+  //   memcpy(frame_buf, imu_rx_buf, IMU_FRAME_LEN);
+  //   imu_frame_ready = false;
+  //   interrupts();
 
-    IMUData parsed_imu = readIMU(frame_buf);
+  //   IMUData parsed_imu = readIMU(frame_buf);
 
-    noInterrupts();
-    imu_data = parsed_imu;
-    imu_data_valid = true;
-    interrupts();
-  }
+  //   noInterrupts();
+  //   imu_data = parsed_imu;
+  //   imu_data_valid = true;
+  //   interrupts();
+  // }
 
   readBatSensor(battery_data);
   Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
@@ -173,13 +165,44 @@ void loop() {
   Serial.print("Load Voltage (V): ");Serial.println(battery_data.load_voltage_V);
   Serial.println();
 
-
-  // update_bno_values();
-
   readAltimeter(flight_data);
   Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
   Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
   Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
+  Serial.println();
+
+
+  readIMU(imu_data);
+  Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
+
+  Serial.print("YPR (deg): ");
+  Serial.print(imu_data.ypr[0], 3); Serial.print(", ");
+  Serial.print(imu_data.ypr[1], 3); Serial.print(", ");
+  Serial.println(imu_data.ypr[2], 3);
+
+  Serial.print("Angular Rate (rad/s): ");
+  Serial.print(imu_data.angularRate[0], 4); Serial.print(", ");
+  Serial.print(imu_data.angularRate[1], 4); Serial.print(", ");
+  Serial.println(imu_data.angularRate[2], 4);
+
+  Serial.print("Accel (m/s^2): ");
+  Serial.print(imu_data.accel[0], 4); Serial.print(", ");
+  Serial.print(imu_data.accel[1], 4); Serial.print(", ");
+  Serial.println(imu_data.accel[2], 4);
+
+  Serial.print("LLA (lat, lon, alt): ");
+  Serial.print(imu_data.posLla[0], 6); Serial.print(", ");
+  Serial.print(imu_data.posLla[1], 6); Serial.print(", ");
+  Serial.println(imu_data.posLla[2], 2);
+
+  Serial.print("Vel Body (m/s): ");
+  Serial.print(imu_data.velBody[0], 3); Serial.print(", ");
+  Serial.print(imu_data.velBody[1], 3); Serial.print(", ");
+  Serial.println(imu_data.velBody[2], 3);
+
+  Serial.print("INS Status: ");
+  Serial.println(imu_data.insStatus);
+
   Serial.println();
 
 
@@ -190,6 +213,8 @@ void loop() {
     spi_packet_set_voltage(battery_data.voltage_v);
 
     spi_packet_set_altitude(flight_data.altitude_m);
+
+    spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
     
     spi_packet_set_state(current_phase);
 
@@ -229,7 +254,6 @@ void loop() {
   //     // Insert final data handling
 
   // }
-
 
 }
 
