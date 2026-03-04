@@ -1,7 +1,9 @@
 import loralibPi5 as loralib
 import time
 import struct
+from dataclasses import dataclass
 
+# LoRa 
 fq = 915000000 # 915 MHz
 bw = 125 # 125 kHz
 cr = 1 # 4/5 coding rate
