@@ -22,7 +22,7 @@ RST                       = 17
 TX                       = 27
 
 BUS                       = 0
-DEVICE                    = 0
+DEVICE                    = 1
 
 # Registers
 REG_FIFO                  = 0x00
