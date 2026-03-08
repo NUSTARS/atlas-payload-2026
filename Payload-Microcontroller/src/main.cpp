@@ -12,12 +12,14 @@
 enum flight_phase {
   ON_PAD,
   POST_BOOST,
+  ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD,
   DESCENDING,
   RUN_CONTROLS,
   LANDED
 };
 
 #define POST_BOOST_THRESHOLD_M 112
+#define ASCENDING_CONTROL_LOCKOUT_THRESHOLD_M 1000
 #define DESCENDING_ALTITUDE_DELTA_M 1234
 #define RUN_CONTROLS_THRESHOLD_M 300
 #define LANDED_THRESHOLD_M 10
@@ -27,7 +29,9 @@ enum flight_phase {
 #define CONTROL_PERIOD_us 1000000 // period of the control interrupt in microseconds
 
 // GLOBALS =========================================================================
+float base_altitude_m;
 float prev_altitude_m = 0.0; // for use in check for advance to DESCENDING state
+
 
 flight_phase current_phase = flight_phase::ON_PAD;
 
@@ -76,14 +80,14 @@ void controlInterrupt() {
   
   // only continue if we are running controls
   if (current_phase != RUN_CONTROLS) return;
-
+  /*
   // get pid value
   float pid_result = PIDControl(x_hat[0], x_hat[1]);
   // get feed-forward value
   float ff_result = feedForwardControl(x_hat[2]);
   // command motor
   motorControl(pid_result + ff_result);
-  
+  */
 }
 
 // SETUP ===========================================================================
@@ -114,6 +118,8 @@ void setup() {
     }
   }
   */
+  readAltimeter(flight_data);
+  base_altitude_m = flight_data.altitude_m;
 
   // Initialize IMU
   bool success_bno_setup = initIMU();
@@ -234,10 +240,12 @@ void loop() {
   }
 
   Serial.println(current_phase);
+
+  float altitude_agl_m = flight_data.altitude_m - base_altitude_m;
   switch (current_phase) {
 
     case ON_PAD:
-      if (flight_data.altitude_m > POST_BOOST_THRESHOLD_M) {
+      if (altitude_agl_m > POST_BOOST_THRESHOLD_M) {
         current_phase = POST_BOOST;
         Serial.println("LIFTOFF DETECTED");
         pinMode(BUZZER_PIN, OUTPUT);
@@ -246,22 +254,27 @@ void loop() {
         delay(500);
         digitalWrite(BUZZER_PIN, LOW);
       }
-      
-    case POST_BOOST:
-      if (prev_altitude_m - flight_data.altitude_m > DESCENDING_ALTITUDE_DELTA_M ) {
-        current_phase = DESCENDING;
+    
+    case (flight_phase::POST_BOOST):
+      if (altitude_agl_m > ASCENDING_CONTROL_LOCKOUT_THRESHOLD_M) {
+        current_phase = flight_phase::ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD;
       }
-      prev_altitude_m = flight_data.altitude_m;
+      
+    case (flight_phase::ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD):
+      if (prev_altitude_m - altitude_agl_m > DESCENDING_ALTITUDE_DELTA_M ) {
+        current_phase = flight_phase::DESCENDING;
+      }
+      prev_altitude_m = altitude_agl_m;
 
     case DESCENDING:
-      if (flight_data.altitude_m < RUN_CONTROLS_THRESHOLD_M) {
+      if (altitude_agl_m < RUN_CONTROLS_THRESHOLD_M) {
         current_phase = RUN_CONTROLS;
         Serial.println("STARTING CONTROL SYSTEM");
         // Trigger RPi to start capturing pictures
       }
     
     case RUN_CONTROLS:
-      if (flight_data.altitude_m  < LANDED_THRESHOLD_M) {
+      if (altitude_agl_m  < LANDED_THRESHOLD_M) {
         current_phase = LANDED;
         Serial.println("LANDED");
       }
