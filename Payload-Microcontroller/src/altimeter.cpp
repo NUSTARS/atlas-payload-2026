@@ -1,6 +1,6 @@
 #include "altimeter.h"
 
-#define BMP5XX_CS_PIN 10
+#define BMP5XX_CS_PIN 0
 
 Adafruit_BMP5xx bmp;
 
@@ -10,7 +10,14 @@ float groundPressureHPa = 1013.25;
 // initAltimeter: (void) -> (void)
 // initializes the altimeter
 bool initAltimeter() {
-	if (!bmp.begin(BMP5XX_CS_PIN, &SPI)) {
+	pinMode(0, OUTPUT);
+	digitalWrite(0, HIGH);  
+
+	SPI1.setMISO(1);
+	SPI1.setMOSI(26);
+	SPI1.setSCK(27);
+	SPI1.begin();
+	if (!bmp.begin(BMP5XX_CS_PIN, &SPI1)) {
 		Serial.println(F("Could not find a valid BMP5xx sensor, check wiring!"));
 		return false;
 	}

@@ -33,7 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define numBytes 12
+#define numBytes 29
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,12 +48,10 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-int16_t values[12];
-
 // Receive buffer
-uint8_t buffer[24];
+uint8_t buffer[numBytes];
 
-uint8_t buf_len = 24;
+uint8_t buf_len = numBytes;
 
 /* USER CODE END PV */
 
@@ -120,6 +118,7 @@ int main(void)
 
   if (res != LORA_OK) {
 //      printf("LoRa init failed\r\n");
+	  lora_set_crc(&lora, 1);
   } else {
       uint8_t ver = lora_version(&lora);
 //      printf("LoRa Version: 0x%02X (%u)\r\n", ver, ver);
@@ -145,11 +144,14 @@ int main(void)
 	    uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
 	    // added for rylr
 	    if (res == LORA_OK && len > 0) {
-	    	for (int i = 0; i < len; i++) {
-	    		        printf("%02X ", buffer[i]);
-	    		    }
-	    		    printf("\r\n");
-	        HAL_UART_Transmit(&huart2, buffer, len, HAL_MAX_DELAY);
+//	    	for (int i = 0; i < len; i++) {
+//	    		        printf("%02X ", buffer[i]);
+//	    		    }
+//	    		    printf("\r\n");
+	    	HAL_UART_Transmit(&huart2,
+	    		                    (uint8_t*)buffer,
+	    		                    numBytes,
+	    		                    100);
 	    }
  	    // SHOULD WE STILL RECEIVE IF THE BUFFER LENGTH IS DIFFERENT? WHAT TO DO THEN
 //	    HAL_UART_Transmit(&huart2,

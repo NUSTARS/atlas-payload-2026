@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_BMP5xx.h>
+#include <SPI.h>
 
 struct AltimeterData {
     float temp_C;

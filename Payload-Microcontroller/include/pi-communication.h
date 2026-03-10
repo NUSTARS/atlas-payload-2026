@@ -1,7 +1,45 @@
 // pi-communication.h
 #pragma once
 #include <Arduino.h>
-#include <string.h>
+
+#define CS_PIN 10
+
+struct __attribute__((packed)) Packet { // 49 bytes + 8 bytes for header
+    float orientation[3]; // 12  -> YPR
+    float angular_velocity[3]; // 12 bytes
+    double gps_long; // 8 bytes
+    double gps_lat;  // 8 bytes
+    uint8_t state;  // 1 byte
+    float altitude_m; // 4 bytes
+    float battery_v; // 4 bytes
+};
+
+void setup_slave();
+
+// builds spi packet based on existing spi packet str
+void build_spi_buffer();
+
+// sets the voltage field of the spi packet struct
+void spi_packet_set_voltage(const float voltage);
+
+// sets the altitude field of the spi packet struct
+void spi_packet_set_altitude(const float altitude);
+
+// sets the state field fo the spi packet struct
+void spi_packet_set_state(const uint8_t state);
+
+// sets the orientation and angular velocity fields of the packet struct
+void spi_packet_set_imu(const float (&orientation)[3], const float (&angular_velocity)[3], const double (&latLonAlt)[3]);
+
+
+// -------- OLD VERSION ------------------
+
+// pi-communication.h
+// #pragma once
+// #include <Arduino.h>
+// #include <string.h>
+
+// #define CS_PIN 10
 
 // 
 // Packet Message:
@@ -17,26 +55,30 @@
 //
 //      Total: 58 bytes + 6 bytes -> padding 64 bytes
 
-struct Packet {
-    uint64_t magic_number; // 8 bytes
-    float orientation[3]; // 12 bytes
-    float angular_velocity[3]; // 12 bytes
-    float gps_long;
-    float gps_lat;
-    uint8_t state;
-    float altitude_m;
-    float battery_v;
-};
+// struct __attribute__((packed)) Packet { // 41 bytes + 8 bytes for header
+//     float orientation[3]; // 12 bytes
+//     float angular_velocity[3]; // 12 bytes
+//     float gps_long; // 4 bytes
+//     float gps_lat;  // 4 bytes
+//     uint8_t state;  // 1 byte
+//     float altitude_m; // 4 bytes
+//     float battery_v; // 4 bytes
+// };
+// static_assert(sizeof(Packet)==41, "...");
 
-void setup_slave();
+// void setup_slave();
 
-void spi_set_packet(const float accel[3], const float gyro[3], const float quat[4]);
-// sets the voltage field of the spi packet struct
-void spi_packet_set_voltage(const float voltage);
-// sets the altitude field of the spi packet struct
-void spi_packet_set_altitude(const float altitude);
-// sets the state field fo the spi packet struct
-void spi_packet_set_state(const uint8_t state);
-// sets the orientation and angular velocity fields of the packet struct
-void spi_packet_set_imu(const float (&orientation)[3], const float (&angular_velocity)[3]);
+// // builds spi packet based on existing spi packet str
+// void build_spi_buffer();
 
+// // sets the voltage field of the spi packet struct
+// void spi_packet_set_voltage(const float voltage);
+
+// // sets the altitude field of the spi packet struct
+// void spi_packet_set_altitude(const float altitude);
+
+// // sets the state field fo the spi packet struct
+// void spi_packet_set_state(const uint8_t state);
+
+// // sets the orientation and angular velocity fields of the packet struct
+// void spi_packet_set_imu(const float (&orientation)[3], const float (&angular_velocity)[3]);

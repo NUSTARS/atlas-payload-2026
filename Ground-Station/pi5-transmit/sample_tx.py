@@ -1,55 +1,94 @@
 import loralibPi5 as loralib
 import time
 import struct
+from dataclasses import dataclass
 
 fq = 915000000 # 915 MHz
 bw = 125 # 125 kHz
 cr = 1 # 4/5 coding rate
 implicitHeader = True # implicit header
 sf = 7 # 7 spreading factor (default)
-checkSum = False # FOR TESTING NOW NO CHECKSUM, EVENTUALLY MAYBE IT WILL HAVE ONE
+checkSum = True # enabling CRC
 syncWord = 0x12
 power = 17 # max power
 
+# ALTITUDE (plotted) 2 bytes
+# ORIENTATION IN ALL 3 AXES (numbers & plot) 2*3=6 bytes
+# LONGITUDE AND LATITUDE (number) 2*8=16 bytes
+# VELOCITY IN ALL 3 AXES (plotted) 6 bytes
+# STATE (number) 1 byte
+# BATTERY VOLTAGE (number) 1 byte
+# FRAME COUNTER (number) 1 byte
+# TIME SINCE STARTUP (number) 4 bytes 
+# 2+6+8+6+1+1+1+4 = 35 bytes total
+
 dummy_frames = [
-      [1000,  360, 130, -100,  7500, 14000,   0,  0,   0,  0, 100, 0],
-      [2000,  125, 135,  140,  7501, 14001,   5, -10, 10,  1, 90, 1],
-      [4000,  130, 10,  160,  7600, 14200,  10, 200, 30,  1, 40, 2],
-      [8000,  140, 100,  180,  7700, 14300,  15, 400, 50,  2, 20, 3],
-      [12000, 135, 140,  170,  7800, 14400,   8, -100, 25,  2, 10, 4]
+      [1000,  360.23, 130.1, -100.5,  7500.123, 14000.5182,   0,  0,   0,  0, 100, 0.0],
+      [2000,  125.6, 135.6,  140.2,  7501.129681, 14001.123456789,   5, -10, 10,  1, 90, 0.5],
+      [4000,  130.0, 10.0,  160.0,  7600.059102305, 14200.01923941,  10, 200, 30,  1, 40, 1.0],
+      [8000,  140.0, 100.0,  180.0,  7700.011959123, 14300.631923941,  15, 400, 50,  2, 20, 1.5],
+      [12000, 135.0, 140.0,  170.0,  7800.01959123, 14400.0192391,   8, -100, 25,  2, 10, 2.0]
 ];
 
 count = 0
 
-def pack_frame(frame):
-    return struct.pack('<' + 'h'*len(frame), *frame)
+@dataclass
+class Packet:
+    altitude: float # will convert to uint16 2 bytes
+    orientationX: float # will convert into int16 2 bytes
+    orientationY: float # will convert into int16 2 bytes
+    orientationZ: float # will convert into int16 2 bytes
+    longitude: float # double 8 bytes
+    latitude: float # double 8 bytes
+    velocityX: float # will convert to int16 2 bytes
+    velocityY: float # will convert to int16 2 bytes
+    velocityZ: float # will convert to int16 2 bytes
+    state: int # uint8 1 byte
+    battery_voltage: int # uint8 1 byte
+    time_since_startup: float # float 2 bytes
+    frame_counter: int = 0 # uint8 1 byte
 
-#############################################
-# STM32 CODE TO UNPACK, WE ALREADY ARE UNPACKING IN DATA VIS THO
-# int16_t values[12];
+    # 37 bytes total, I thought it was 35 but apparently it isn't, I cba to find out why rn
+    
+    # Need to make sure orientation is just degrees from -360 to 360,
+    # velocity is from -32768 to 32767, 
+    # altitude is from 0 to 65535, 
+    # longitude/latitude are reasonable floats that fit in 4 bytes (so like 4 decimals ish?),
+    # state, battery voltage, and frame are from 0 to 255 (more than 255 frames would mean it's transmitting for 510 seconds soo probs ok)
+    # time since startup is float since it's transmitting at 2 Hz so might need this precision?
 
-# for (int i = 0; i < 12; i++) {
-#     values[i] = (int16_t)(data[2*i] | (data[2*i+1] << 8));
-# }
-#############################################
+    def update(self, frame):
+        (
+            self.altitude,
+            self.orientationX, self.orientationY, self.orientationZ,
+            self.longitude, self.latitude,
+            self.velocityX, self.velocityY, self.velocityZ,
+            self.state, self.battery_voltage,
+            self.time_since_startup
+        ) = frame
+    
+    def pack(self):
+        return struct.pack('<Hhhh' + 'dd' + 'hhh' + 'BBBf', int(self.altitude), int(self.orientationX), int(self.orientationY), int(self.orientationZ),
+                           self.longitude, self.latitude, 
+                           int(self.velocityX), int(self.velocityY), int(self.velocityZ),
+                           self.state, self.battery_voltage, self.frame_counter, self.time_since_startup)
+    
+    def send(self):
+        packed_data = self.pack()
+        loralib.transmit(packed_data)
+        self.frame_counter = (self.frame_counter + 1) % 256
 
-#############################################
 if __name__ == "__main__":
 
     loralib.initialize()
     # configure with: 915 MHz frequency band, 125 kHz bandwidth, 
-    # 4/5 coding rate (4/4+cr), no explicit header, spreading factor of 7, disabling CRC (adding a checksum),
+    # 4/5 coding rate (4/4+cr), no explicit header, spreading factor of 7, enabling CRC (adding a checksum),
     # sync word as 0x12, and outputting at max power
     loralib.configure(fq, bw, cr, implicitHeader, sf, checkSum, syncWord, power)
+    packet = Packet(*dummy_frames[0])
     while 1:
-        for i, frame in enumerate(dummy_frames):
-            print(f"Sending dummy frame {i}")
-            print(f"This is msg number {count}")
-            packed = pack_frame(frame)
-            loralib.transmit(packed)
-            count += 1
-            time.sleep(2.5)
-            
-
-
-
+        for frame in dummy_frames:
+            # idk if .update is the best way to do it 
+            packet.update(frame)
+            packet.send()
+            time.sleep(.5)
