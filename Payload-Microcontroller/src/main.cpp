@@ -4,7 +4,7 @@
 #include <bat-sensor.h>
 #include <controls.h>
 #include <pi-communication.h>
-#include <KalmanFilterWN.h>
+#include <KalmanFilter.h>
 #include <bno-imu.hpp>
 // #include <imu.h>
 
@@ -37,7 +37,7 @@ flight_phase current_phase = flight_phase::ON_PAD;
 
 AltimeterData flight_data;
 
-KalmanFilterWN kf;
+KalmanFilter kf;
 
 IMUData imu_data;
 bool imu_data_valid = false;
@@ -72,7 +72,7 @@ void controlInterrupt() {
   // kalman filter
   float roll_heading = imu_data.ypr[2]; 
   float roll_velocity = imu_data.angularRate[2];
-  Eigen::Vector<float,2> z = {roll_heading, roll_velocity};
+  Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
   // FIXME update timestep
   kf.predict();
   kf.update(z);
@@ -133,12 +133,14 @@ void setup() {
   */
 
   // Initialize Kalman Filter
-  float dt0 = CONTROL_PERIOD_us * 1e-6f;
-  // // FIXME read imu and store to 
-  float phi0 = 0.0;
-  float omega0 = 0.0;
-  // // FIXME convert units
-  Eigen::Matrix3f P0;
+  float dt0 = CONTROL_PERIOD_us * 1e-6f; // seconds
+  // // FIXME read imu and store to
+  float roll_heading0 = 0.0;
+  float roll_velocity0 = 0.0;
+  Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
+  kf.init(dt0, z0);
+
+
   
 
   // Start IMU data collection + control interrupt
