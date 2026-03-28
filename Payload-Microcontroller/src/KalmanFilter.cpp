@@ -6,9 +6,7 @@ KalmanFilter::KalmanFilter() : initialized(false)
 { 
 }
 
-void KalmanFilter::init(
-    float dt0,
-    Eigen::Vector<float,2> z0) {
+void KalmanFilter::init(float dt0, Eigen::Vector<float,2> z0) {
         // initial states 
         Eigen::Matrix<float,3,3> P0;
         P0 << 0.1, 0, 0,
@@ -29,7 +27,7 @@ void KalmanFilter::init(
         initialized = true;
 }
 
-void KalmanFilter::predict() {
+void KalmanFilter::predict() { 
     // this predicts the new x for this iteration using the state transition matrix F
     // F is basically the dynamics of the system in a matrix
     x_hat.noalias() = F * x_hat;

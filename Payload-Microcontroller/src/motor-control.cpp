@@ -35,6 +35,7 @@ String readODrive(String cmd) {
 
 void setup() {
   Serial.begin(115200);
+  
   // ODrive S1 default baud is 115200, but ensure your 
   // ODrive tool settings match this!
   Serial1.begin(115200); 
