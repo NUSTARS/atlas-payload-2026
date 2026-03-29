@@ -133,7 +133,7 @@ ax_vel.set_title("Velocity (X,Y,Z)")
 ax_vel.legend(['Vx', 'Vy', 'Vz'], loc='upper left')
 
 number_titles = [
-    'Orientation X', 'Orientation Y', 'Orientation Z',
+    'Yaw', 'Pitch', 'Roll',
     'Longitude', 'Latitude',
     'State', 'Battery Voltage', 'Frame Counter', "Time Since Startup",
     'Altitude', 'Velocity (Y)', 'Longitude Change', 'Latitude Change'
@@ -146,7 +146,7 @@ x_positions = [.05,.05,.05,
 
 y_positions = [0.92, 0.82, 0.72, 
                0.60, 0.52, 
-               .20,.10, 0.20, 0.10,
+               .10,0, 0.10, 0,
                .92,.82,.40,.30]
 
 colors = ['red', 'green', 'blue', 
@@ -225,7 +225,7 @@ try:
         ch_values = parse_message(rowmsg)
         if len(ch_values) != numVars:
             continue
-
+    
         if firstDataPoint == True:
             startingLong = ch_values[longlatitudes[0]]
             startingLat = ch_values[longlatitudes[1]]
@@ -236,6 +236,8 @@ try:
 
         # if abs(ch_values[orientationPlot[0]]) > 1000:
         #     continue
+
+        print(ch_values)
 
         battery_value = ch_values[batteryVoltage[0]]
 

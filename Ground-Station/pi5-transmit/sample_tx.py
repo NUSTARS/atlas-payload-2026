@@ -11,6 +11,7 @@ sf = 7 # 7 spreading factor (default)
 checkSum = True # enabling CRC
 syncWord = 0x12
 power = 17 # max power
+preamble = 8 # matching stm
 
 # ALTITUDE (plotted) 2 bytes
 # ORIENTATION IN ALL 3 AXES (numbers & plot) 2*3=6 bytes
@@ -84,11 +85,11 @@ if __name__ == "__main__":
     # configure with: 915 MHz frequency band, 125 kHz bandwidth, 
     # 4/5 coding rate (4/4+cr), no explicit header, spreading factor of 7, enabling CRC (adding a checksum),
     # sync word as 0x12, and outputting at max power
-    loralib.configure(fq, bw, cr, implicitHeader, sf, checkSum, syncWord, power)
+    loralib.configure(fq, bw, cr, implicitHeader, sf, checkSum, syncWord, power, preamble)
     packet = Packet(*dummy_frames[0])
     while 1:
         for frame in dummy_frames:
             # idk if .update is the best way to do it 
             packet.update(frame)
             packet.send()
-            time.sleep(.5)
+            time.sleep(1)

@@ -21,9 +21,9 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
   8 .data         0000000c  20000000  08003d78  00005000  2**2
                   CONTENTS, ALLOC, LOAD, DATA
-  9 .bss          000000e0  2000000c  08003d84  0000500c  2**2
+  9 .bss          000000e8  2000000c  08003d84  0000500c  2**2
                   ALLOC
- 10 ._user_heap_stack 00000604  200000ec  08003d84  000050ec  2**0
+ 10 ._user_heap_stack 00000604  200000f4  08003d84  000050f4  2**0
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  0000500c  2**0
                   CONTENTS, READONLY
@@ -37,11 +37,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  00015c8f  00000000  00000000  000126b3  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0000b22b  00000000  00000000  00028342  2**0
+ 17 .debug_line   0000b22a  00000000  00000000  00028342  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000876cc  00000000  00000000  0003356d  2**0
+ 18 .debug_str    000876cc  00000000  00000000  0003356c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000043  00000000  00000000  000bac39  2**0
+ 19 .comment      00000043  00000000  00000000  000bac38  2**0
                   CONTENTS, READONLY
  20 .debug_frame  00002964  00000000  00000000  000bac7c  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -1775,8 +1775,8 @@ uint8_t lora_init(lora_sx1276 *lora, SPI_HandleTypeDef *spi, GPIO_TypeDef *nss_p
  8000d22:	68f8      	ldr	r0, [r7, #12]
  8000d24:	f7ff fe5c 	bl	80009e0 <lora_set_crc>
   // Set payload length to 29
-  write_register(lora, REG_PAYLOAD_LENGTH, 29);
- 8000d28:	221d      	movs	r2, #29
+  write_register(lora, REG_PAYLOAD_LENGTH, 37);
+ 8000d28:	2225      	movs	r2, #37	@ 0x25
  8000d2a:	2122      	movs	r1, #34	@ 0x22
  8000d2c:	68f8      	ldr	r0, [r7, #12]
  8000d2e:	f7ff fc20 	bl	8000572 <write_register>
@@ -1910,7 +1910,7 @@ int main(void)
  8000ddc:	1cfb      	adds	r3, r7, #3
  8000dde:	9300      	str	r3, [sp, #0]
  8000de0:	f242 7310 	movw	r3, #10000	@ 0x2710
- 8000de4:	221d      	movs	r2, #29
+ 8000de4:	2225      	movs	r2, #37	@ 0x25
  8000de6:	490f      	ldr	r1, [pc, #60]	@ (8000e24 <main+0xc4>)
  8000de8:	f7ff ff07 	bl	8000bfa <lora_receive_packet_blocking>
  8000dec:	4603      	mov	r3, r0
@@ -1928,14 +1928,14 @@ int main(void)
 //	    		    }
 //	    		    printf("\r\n");
 	    	HAL_UART_Transmit(&huart2,
- 8000dfc:	2364      	movs	r3, #100	@ 0x64
- 8000dfe:	221d      	movs	r2, #29
- 8000e00:	4908      	ldr	r1, [pc, #32]	@ (8000e24 <main+0xc4>)
- 8000e02:	4809      	ldr	r0, [pc, #36]	@ (8000e28 <main+0xc8>)
- 8000e04:	f002 fbb0 	bl	8003568 <HAL_UART_Transmit>
+ 8000dfc:	7f7b      	ldrb	r3, [r7, #29]
+ 8000dfe:	b29a      	uxth	r2, r3
+ 8000e00:	2364      	movs	r3, #100	@ 0x64
+ 8000e02:	4908      	ldr	r1, [pc, #32]	@ (8000e24 <main+0xc4>)
+ 8000e04:	4808      	ldr	r0, [pc, #32]	@ (8000e28 <main+0xc8>)
+ 8000e06:	f002 fbaf 	bl	8003568 <HAL_UART_Transmit>
   {
- 8000e08:	e7e7      	b.n	8000dda <main+0x7a>
- 8000e0a:	bf00      	nop
+ 8000e0a:	e7e6      	b.n	8000dda <main+0x7a>
  8000e0c:	f3af 8000 	nop.w
  8000e10:	3689cac0 	.word	0x3689cac0
  8000e14:	00000000 	.word	0x00000000
@@ -2945,7 +2945,7 @@ LoopFillZerobss:
   ldr r2, =_sbss
  8001314:	2000000c 	.word	0x2000000c
   ldr r4, =_ebss
- 8001318:	200000ec 	.word	0x200000ec
+ 8001318:	200000f4 	.word	0x200000f4
 
 0800131c <ADC_IRQHandler>:
  * @retval None       
@@ -3108,7 +3108,7 @@ __weak void HAL_IncTick(void)
  80013e0:	4770      	bx	lr
  80013e2:	bf00      	nop
  80013e4:	20000008 	.word	0x20000008
- 80013e8:	200000e8 	.word	0x200000e8
+ 80013e8:	200000f0 	.word	0x200000f0
 
 080013ec <HAL_GetTick>:
   * @note This function is declared as __weak to be overwritten in case of other 
@@ -3128,7 +3128,7 @@ __weak uint32_t HAL_GetTick(void)
  80013f8:	f85d 7b04 	ldr.w	r7, [sp], #4
  80013fc:	4770      	bx	lr
  80013fe:	bf00      	nop
- 8001400:	200000e8 	.word	0x200000e8
+ 8001400:	200000f0 	.word	0x200000f0
 
 08001404 <HAL_Delay>:
   *       implementations in user file.
