@@ -1,165 +1,165 @@
 // imu.cpp
 //
-// contains all logic and control
-// related to setting up and getting data
-// from the IMU
+// Serial IMU interface for VectorNav binary protocol.
+// serviceIMU() drains Serial2 each loop iteration; getLatestIMUData() is safe
+// to call from the 50Hz control ISR (double-buffer, minimal critical section).
+
 #include "imu.h"
 #include <Arduino.h>
-#include <HardwareSerial.h>
+#include <string.h>
 
+// Internal constants
 
-// initIMU: (int, int, int) -> (int)
-// initializes the IMU by writing ASCII commands over serial to the IMU
-// returns 1 on successful connection, 0 otherwise
-int initIMU(){
-    sendUARTCommand("$VNASY,0*4E"); //disable asynchronous data output
-    sendUARTCommand("$VNWRG,06,17,0*XX"); //set output mode. rn its Yaw, Pitch, Roll, Inertial True Acceleration and Angular Rate Measurements but look into body vs inertial
-    // sendUARTCommand("$VNWRG,60"); //add timestamp to data output
+static const size_t FRAME_LEN = 88; // fixed binary packet length
 
-    
+// Internal buffers
 
+// Ring buffer: no memmove, just head/tail pointers.
+static const size_t RX_BUF_SIZE = FRAME_LEN * 4;
+static uint8_t rx_buf[RX_BUF_SIZE];
+static size_t rx_head = 0;  // write pointer
+static size_t rx_tail = 0;  // read pointer
 
+// Loop-side parse target: written by parseFrame()
+static IMUData imu_staging;
 
-    return 0;
+// ISR-readable snapshot: updated atomically by publishFrame().
+static IMUData imu_published;
+static volatile bool imu_valid = false;
+static volatile uint32_t imu_seq = 0;
 
+// checksum
+static uint16_t crc16_step(uint16_t crc, uint8_t byte) {
+    crc ^= (uint16_t)byte << 8;
+    for (int b = 0; b < 8; b++) {
+        crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : (crc << 1);
+    }
+    return crc;
 }
 
+// Frame parser
+// Parses a validated VN binary frame into imu_staging, then
+// atomically copies to imu_published with interrupts disabled.
+static void parseFrame(const uint8_t *frame) {
+    // frame[0] == 0xFA (already verified by serviceIMU)
+    uint8_t groupmask = frame[1];
 
-// readIMU: (int) -> (float*)
-// reads the asynchronous data stream from RX and returns a pointer to an array of floats
-//timeUTC, ypr, angularrate, accel, PosLla, velBody, InsStatus
-IMUData readIMU(uint8_t* buffer) {
-   IMUData data;
-  
-   // 1. Verify Header
-   if (buffer[0] != 0xFA) return data;
-   uint8_t groupmask = buffer[1];
-   
-
-
-   
-   // 2. Map the masks (they appear in order of group number)
-   // We'll store them in an array so we can access them easily
-   uint16_t masks[8] = {0};
-   int currentMaskIdx = 0;
-   for (int i = 0; i < 8; i++) {
-       if (groupmask & (1 << i)) {
-           // Grab the 2-byte mask and move the index
-           std::memcpy(&masks[i], &buffer[2 + (currentMaskIdx * 2)], 2);
-           currentMaskIdx++;
-       }
-   }
-   // 3. Where does the payload start?
-   uint8_t* ptr = &buffer[2 + (currentMaskIdx * 2)];
-   //  Process Group 1 (Common) 
-
-   if (masks[0] & (1 << 3)) { // YPR
-       std::memcpy(data.ypr, ptr, 12);
-       ptr += 12;
-   }
-   if (masks[0] & (1 << 5)) { // Angular Rate
-       std::memcpy(data.angularRate, ptr, 12);
-       ptr += 12;
-   }
-   if (masks[0] & (1 << 8)) { // Accel
-       std::memcpy(data.accel, ptr, 12);
-       ptr += 12;
-   }
-
-   // Process Group 2 (Time)
-
-   if (masks[1] & (1 << 6)) { // TimeUTC
-       std::memcpy(&data.timeUTC, ptr, 8);
-       ptr += 8;
-   }
-   // test 1
-   // Process Group 6 (INS)
-
-   if (masks[5] & (1 << 0)) { // InsStatus
-       std::memcpy(&data.insStatus, ptr, 2);
-       ptr += 2;
-   }
-   if (masks[5] & (1 << 1)) { // PosLla
-       std::memcpy(data.posLla, ptr, 24); 
-       ptr += 24;
-   }
-   if (masks[5] & (1 << 3)) { // VelBody
-       std::memcpy(data.velBody, ptr, 12);
-       ptr += 12;
-   }
-
-   return data;
-}
-
-
-// sendUARTCommand: (const char*) -> (void)
-// sends an ASCII command over UART to the IMU, then waits for an acknowledgment. Also checks checksum
-// thanks claude
-int sendUARTCommand(const char* command, unsigned int timeout_ms){
-    // Send the command over UART
-    Serial1.print(command);
-    
-    // Wait for response with timeout
-    unsigned long startTime = millis();
-    String response = "";
-    
-    // Read response until timeout
-    while(millis() - startTime < timeout_ms){
-        if(Serial1.available() > 0){
-            char c = Serial1.read();
-            response += c;
-            
-            // Check if we have at least 2 characters for checksum
-            if(response.length() >= 2){
-                // Reset timeout on each character received
-                startTime = millis();
-                
-                if(!Serial1.available()){
-                    break; // No more data coming
-                }
-            }
+    uint16_t masks[8] = {0};
+    int maskIdx = 0;
+    for (int i = 0; i < 8; i++) {
+        if (groupmask & (1 << i)) {
+            memcpy(&masks[i], &frame[2 + maskIdx * 2], 2);
+            maskIdx++;
         }
     }
-    
-    // Check if we received a response
-    if(response.length() < 2){
-        // Handle error: no response or response too short
-        Serial.println("Error: No valid response received");
-        return;
+
+    const uint8_t *ptr = &frame[2 + maskIdx * 2];
+
+    // Group 1 (Common)
+    if (masks[0] & (1 << 3)) { memcpy(imu_staging.ypr,          ptr, 12); ptr += 12; }
+    if (masks[0] & (1 << 5)) { memcpy(imu_staging.angularRate,  ptr, 12); ptr += 12; }
+    if (masks[0] & (1 << 8)) { memcpy(imu_staging.accel,        ptr, 12); ptr += 12; }
+
+    // Group 2 (Time)
+    if (masks[1] & (1 << 6)) { memcpy(&imu_staging.timeUTC,     ptr,  8); ptr +=  8; }
+
+    // Group 6 (INS)
+    if (masks[5] & (1 << 0)) { memcpy(&imu_staging.insStatus,   ptr,  2); ptr +=  2; }
+    if (masks[5] & (1 << 1)) { memcpy(imu_staging.posLla,       ptr, 24); ptr += 24; }
+    if (masks[5] & (1 << 3)) { memcpy(imu_staging.velBody,      ptr, 12); ptr += 12; }
+
+    // send full frame to published buffer
+    noInterrupts();
+    memcpy(&imu_published, &imu_staging, sizeof(IMUData));
+    imu_valid = true;
+    imu_seq++;
+    interrupts();
+}
+
+bool initIMU(uint32_t baudRate) {
+    Serial2.begin(baudRate);
+    delay(100); // let the port settle
+
+    // // Disable asynchronous ASCII output so only binary packets arrive
+    // Serial2.println("$VNASY,0*4E");
+    // delay(50);
+    // // Set binary output register (Group 1: YPR + AngRate + Accel; Group 2: TimeUTC; Group 6: INS)
+    // Serial2.println("$VNWRG,06,17,0*XX");
+    // delay(50);
+
+    return true;
+}
+
+static size_t ringAvail() {
+    if (rx_head >= rx_tail) return rx_head - rx_tail;
+    return RX_BUF_SIZE - rx_tail + rx_head;
+}
+
+static uint8_t ringPeek(size_t offset) {
+    return rx_buf[(rx_tail + offset) % RX_BUF_SIZE];
+}
+
+static void ringConsume(size_t n) {
+    rx_tail = (rx_tail + n) % RX_BUF_SIZE;
+}
+
+// serviceIMU() — call from main loop every iteration.
+// Drains Serial2 into ring buffer, then processes as many complete frames as possible.
+// On each valid frame: parse and atomically publish to imu_published.
+// On sync loss or CRC failure: discard one byte and resync.
+void serviceIMU() {
+    // 1. Drain incoming bytes (non-blocking)
+    while (Serial2.available()) {
+        size_t nextHead = (rx_head + 1) % RX_BUF_SIZE;
+        if (nextHead == rx_tail) break;  // buffer full, drop byte
+        rx_buf[rx_head] = (uint8_t)Serial2.read();
+        rx_head = nextHead;
     }
-    
-    // Extract checksum (last 2 characters)
-    unsigned int responseLen = response.length();
-    unsigned char receivedChecksum = (unsigned char)response[responseLen - 1];
-    
-    // Calculate checksum on all data except the last character
-    unsigned char data[responseLen - 1];
-    for(unsigned int i = 0; i < responseLen - 1; i++){
-        data[i] = (unsigned char)response[i];
-    }
-    unsigned char calculatedChecksum = calculateChecksum(data, responseLen - 1);
-    
-    // Verify checksum
-    if(receivedChecksum != calculatedChecksum){
-        Serial.println("Error: Checksum mismatch");
-        Serial.print("Received: 0x");
-        Serial.println(receivedChecksum, HEX);
-        Serial.print("Calculated: 0x");
-        Serial.println(calculatedChecksum, HEX);
-    } else {
-        Serial.println("Command acknowledged successfully");
+
+    // 2. Process complete frames
+    while (ringAvail() >= FRAME_LEN) {
+        // Require sync byte at front
+        if (ringPeek(0) != 0xFA) {
+            // Resync: advance one byte
+            ringConsume(1);
+            continue;
+        }
+
+        // Validate CRC
+        uint16_t computed = 0;
+        for (size_t i = 1; i < FRAME_LEN - 2; i++) {
+            computed = crc16_step(computed, ringPeek(i));
+        }
+
+        uint16_t received = ((uint16_t)ringPeek(FRAME_LEN - 2) << 8) | (uint16_t)ringPeek(FRAME_LEN - 1);
+
+        if (computed != received) {
+            // Bad CRC: discard this sync byte and resync
+            ringConsume(1);
+            continue;
+        }
+
+        // Valid frame: copy to staging, parse, and publish
+        uint8_t frame[FRAME_LEN];
+        for (size_t i = 0; i < FRAME_LEN; i++) {
+            frame[i] = ringPeek(i);
+        }
+        parseFrame(frame);
+        ringConsume(FRAME_LEN);
     }
 }
 
-// attachIMUTriggerISR: (uint8_t, void (*)()) -> (bool)
-// attaches an ISR that fires when the specified pin is pulled high
-// returns true if the pin supports interrupts and the ISR was attached
-bool attachIMUTriggerISR(uint8_t pin, void (*isr)()){
-    if (digitalPinToInterrupt(pin) == NOT_AN_INTERRUPT) {
-        return false;
-    }
-
-    pinMode(pin, INPUT);
-    attachInterrupt(digitalPinToInterrupt(pin), isr, RISING);
+// getLatestIMUData() — safe to call from the 50Hz control ISR.
+// Returns false (and leaves out unchanged) if no valid packet has arrived yet.
+bool getLatestIMUData(IMUData &out) {
+    if (!imu_valid) return false;
+    memcpy(&out, &imu_published, sizeof(IMUData));
+    // Serial.println("got imu data, it was ");
+    // Serial.println(imu_published.timeUTC, 6);
+    // Serial.println("");
     return true;
+}
+
+uint32_t getIMUSequence() {
+    return imu_seq;
 }
