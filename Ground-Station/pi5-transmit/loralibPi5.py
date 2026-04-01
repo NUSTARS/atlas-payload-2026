@@ -15,14 +15,13 @@ import time
 from gpiod.line import Direction, Value
 
 ################# Constants #################
-
 # SX1276 - Raspberry connections
 DIO0                      = 4
 RST                       = 17
 TX                       = 27
 
 BUS                       = 0
-DEVICE                    = 0
+DEVICE                    = 1
 
 # Registers
 REG_FIFO                  = 0x00
@@ -99,7 +98,7 @@ def input_gpio(gpio):
     Returns 1=True/HIGH, 0=False/LOW
     """
     with gpiod.request_lines(
-        "/dev/gpiochip4",
+        "/dev/gpiochip0",
         consumer="loralibPi5",
         config={
             DIO0: gpiod.LineSettings(
@@ -122,7 +121,7 @@ def output_gpio(gpio, value):
     value: 0/1 or False/True
     """
     with gpiod.request_lines(
-        "/dev/gpiochip4",
+        "/dev/gpiochip0",
         consumer="loralibPi5",
         config={
             DIO0: gpiod.LineSettings(
@@ -174,6 +173,12 @@ def opmode(mode):
 def setLoRaMode():
     # Set HF Lora Mode
     writeReg(REG_OPMODE, OPMODE_LORA_HF)
+
+def setPreambleLength(length):
+    # SX1276 Preamble registers are 0x20 (MSB) and 0x21 (LSB)
+    # Default is 8. Standard range is 6-65535.
+    writeReg(0x20, (length >> 8) & 0xFF)
+    writeReg(0x21, length & 0xFF)
 
 ############## Setup functions ##############
 def initialize():
@@ -538,7 +543,7 @@ def sx1276_reset():
     output_gpio(RST,1)
     time.sleep(0.15)
 
-def configure(fq, bw, cr, header, sf, CRC, sync, power):
+def configure(fq, bw, cr, header, sf, CRC, sync, power, preamble):
         setFrequency(fq) # 915 MHz
         setBandwidth(bw)
         setCodingRate(cr)   # coding rate = 4/(4+cr)
@@ -547,14 +552,15 @@ def configure(fq, bw, cr, header, sf, CRC, sync, power):
         setCRC(CRC)
         setSyncWord(sync)
         configPower(power)
+        setPreambleLength(preamble)
 
-# if __name__ == "__main__":
-#     sx1276_reset()
-#     devices = scan_spi_for_sx1276()
+if __name__ == "__main__":
+    sx1276_reset()
+    devices = scan_spi_for_sx1276()
 
-#     if devices:
-#         print("Found SX1276 on:")
-#         for bus, dev in devices:
-#             print(f"   - spidev{bus}.{dev}")
-#     else:
-#         print("No SX1276 devices detected on SPI")
+    if devices:
+        print("Found SX1276 on:")
+        for bus, dev in devices:
+            print(f"   - spidev{bus}.{dev}")
+    else:
+        print("No SX1276 devices detected on SPI")

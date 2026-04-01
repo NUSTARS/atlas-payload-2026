@@ -2,7 +2,7 @@
 #pragma once
 #include <Arduino.h>
 
-#define CS_PIN 10
+#define CS_PIN 0
 
 struct __attribute__((packed)) Packet { // 49 bytes + 8 bytes for header
     float orientation[3]; // 12  -> YPR

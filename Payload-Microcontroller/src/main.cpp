@@ -12,25 +12,28 @@
 enum flight_phase {
   ON_PAD,
   POST_BOOST,
+  ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD,
   DESCENDING,
   RUN_CONTROLS,
   LANDED
 };
 
-
-#define POST_BOOST_THRESHOLD_M 50
+#define POST_BOOST_THRESHOLD_M 112
+#define ASCENDING_CONTROL_LOCKOUT_THRESHOLD_M 1000
 #define DESCENDING_ALTITUDE_DELTA_M 1234
 #define RUN_CONTROLS_THRESHOLD_M 300
 #define LANDED_THRESHOLD_M 10
 
-#define BUZZER_PIN 17
+#define BUZZER_PIN 14
 
-#define CONTROL_PERIOD_us 10 // period of the control interrupt in microseconds
+#define CONTROL_PERIOD_us 1000000 // period of the control interrupt in microseconds
 
 // GLOBALS =========================================================================
+float base_altitude_m;
 float prev_altitude_m = 0.0; // for use in check for advance to DESCENDING state
 
-flight_phase current_phase = ON_PAD;
+
+flight_phase current_phase = flight_phase::ON_PAD;
 
 AltimeterData flight_data;
 
@@ -61,6 +64,7 @@ IntervalTimer control_timer;
 
 // INTERRUPTS ======================================================================
 // void controlInterrupt() {
+//   Serial.println("controls");
 //   if (!imu_data_valid) return;
 
 //   spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
@@ -68,20 +72,22 @@ IntervalTimer control_timer;
 //   // kalman filter
 //   float roll_heading = imu_data.ypr[2]; 
 //   float roll_velocity = imu_data.angularRate[2];
+//   Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
 //   // FIXME update timestep
 //   kf.predict();
-//   kf.update(roll_heading, roll_velocity);
+//   kf.update(z);
 //   Eigen::Vector3f x_hat = kf.state();
   
 //   // only continue if we are running controls
 //   if (current_phase != RUN_CONTROLS) return;
-
+//   /*
 //   // get pid value
 //   float pid_result = PIDControl(x_hat[0], x_hat[1]);
 //   // get feed-forward value
 //   float ff_result = feedForwardControl(x_hat[2]);
 //   // command motor
 //   motorControl(pid_result + ff_result);
+//   */
 // }
 
 // SETUP ===========================================================================
@@ -92,22 +98,26 @@ void setup() {
   setup_slave();
   Serial.println("set up teensy as slave");
 
-  bool bat_sensor_setup = initBatSensor();
-  Serial.println("set up battery sensor!");
+  // bool bat_sensor_setup = initBatSensor();
+  // Serial.println("set up battery sensor!");
+  /*
   if (!bat_sensor_setup) {
     while (1) {
       delay(200);
     }
   }
+  */
 
   // Initialize Altimeter
-  bool success_alti_setup = initAltimeter();
-  Serial.println("set up Altimeter!");
-  if (!success_alti_setup) {
-    while (1) {
-      delay(200);
-    }
-  }
+  // bool success_alti_setup = initAltimeter();
+  // Serial.println("set up Altimeter!");
+  // if (!success_alti_setup) {
+  //   while (1) {
+  //     delay(200);
+  //   }
+  // }
+  // readAltimeter(flight_data);
+  // base_altitude_m = flight_data.altitude_m;
 
   // Initialize IMU
   bool success_bno_setup = initIMU();
@@ -117,14 +127,18 @@ void setup() {
       delay(200);
     }
   }
+  
 
   // Initialize Kalman Filter
-  // float dt0 = CONTROL_PERIOD_us * 1e-6f;
-  // // FIXME read imu and store to 
-  // float phi0 = 0.0;
-  // float omega0 = 0.0;
-  // // FIXME convert units
-  // Eigen::Matrix3f P0;
+  // float dt0 = CONTROL_PERIOD_us * 1e-6f; // seconds
+  // // // FIXME read imu and store to
+  // float roll_heading0 = 0.0;
+  // float roll_velocity0 = 0.0;
+  // Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
+  // kf.init(dt0, z0);
+
+
+  
 
   // Start IMU data collection + control interrupt
   // control_timer.priority(0);
@@ -159,21 +173,21 @@ void loop() {
   // }
 
   readBatSensor(battery_data);
-  Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
-  Serial.print("Current (mA): ");Serial.println(battery_data.current_ma);
-  Serial.print("Power (mW): ");Serial.println(battery_data.power_mw);
-  Serial.print("Load Voltage (V): ");Serial.println(battery_data.load_voltage_V);
-  Serial.println();
+  // Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
+  // Serial.print("Current (mA): ");Serial.println(battery_data.current_ma);
+  // Serial.print("Power (mW): ");Serial.println(battery_data.power_mw);
+  // Serial.print("Load Voltage (V): ");Serial.println(battery_data.load_voltage_V);
+  // Serial.println();
 
   readAltimeter(flight_data);
-  Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
-  Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
+  // Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
+  // Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
   Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
-  Serial.println();
+  // Serial.println();
 
 
   readIMU(imu_data);
-  Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
+  // Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
 
   Serial.print("YPR (deg): ");
   Serial.print(imu_data.ypr[0], 3); Serial.print(", ");
@@ -190,20 +204,20 @@ void loop() {
   Serial.print(imu_data.accel[1], 4); Serial.print(", ");
   Serial.println(imu_data.accel[2], 4);
 
-  Serial.print("LLA (lat, lon, alt): ");
-  Serial.print(imu_data.posLla[0], 6); Serial.print(", ");
-  Serial.print(imu_data.posLla[1], 6); Serial.print(", ");
-  Serial.println(imu_data.posLla[2], 2);
+  // Serial.print("LLA (lat, lon, alt): ");
+  // Serial.print(imu_data.posLla[0], 6); Serial.print(", ");
+  // Serial.print(imu_data.posLla[1], 6); Serial.print(", ");
+  ///Serial.println(imu_data.posLla[2], 2);
 
-  Serial.print("Vel Body (m/s): ");
-  Serial.print(imu_data.velBody[0], 3); Serial.print(", ");
-  Serial.print(imu_data.velBody[1], 3); Serial.print(", ");
-  Serial.println(imu_data.velBody[2], 3);
+  // Serial.print("Vel Body (m/s): ");
+  // Serial.print(imu_data.velBody[0], 3); Serial.print(", ");
+  // Serial.print(imu_data.velBody[1], 3); Serial.print(", ");
+  // Serial.println(imu_data.velBody[2], 3);
 
-  Serial.print("INS Status: ");
-  Serial.println(imu_data.insStatus);
+  // Serial.print("INS Status: ");
+  // Serial.println(imu_data.insStatus);
 
-  Serial.println();
+  //Serial.println();
 
 
   static unsigned long prevSend = 0;
@@ -224,33 +238,48 @@ void loop() {
     prevSend = millis();
   }
 
+  Serial.print("Current Phase: "); Serial.println(current_phase);
+
+  // float altitude_agl_m = flight_data.altitude_m - base_altitude_m;
   // switch (current_phase) {
 
   //   case ON_PAD:
-  //     if (flight_data.altitude_m > ON_PAD) {
+  //     if (altitude_agl_m > POST_BOOST_THRESHOLD_M) {
   //       current_phase = POST_BOOST;
   //       Serial.println("LIFTOFF DETECTED");
+  //       pinMode(BUZZER_PIN, OUTPUT);
+  //       digitalWrite(BUZZER_PIN, HIGH);
+
+  //       delay(500);
+  //       digitalWrite(BUZZER_PIN, LOW);
+  //     }
+    
+  //   case (flight_phase::POST_BOOST):
+  //     if (altitude_agl_m > ASCENDING_CONTROL_LOCKOUT_THRESHOLD_M) {
+  //       current_phase = flight_phase::ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD;
   //     }
       
-  //   case POST_BOOST:
-  //     if (prev_altitude_m - flight_data.altitude_m > DESCENDING_ALTITUDE_DELTA_M ) {
-  //       current_phase = DESCENDING;
+  //   case (flight_phase::ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD):
+  //     if (prev_altitude_m - altitude_agl_m > DESCENDING_ALTITUDE_DELTA_M ) {
+  //       current_phase = flight_phase::DESCENDING;
   //     }
-  //     prev_altitude_m = flight_data.altitude_m;
-      
+  //     prev_altitude_m = altitude_agl_m;
 
   //   case DESCENDING:
-  //     if (flight_data.altitude_m < RUN_CONTROLS_THRESHOLD_M) {
+  //     if (altitude_agl_m < RUN_CONTROLS_THRESHOLD_M) {
   //       current_phase = RUN_CONTROLS;
   //       Serial.println("STARTING CONTROL SYSTEM");
   //       // Trigger RPi to start capturing pictures
   //     }
     
   //   case RUN_CONTROLS:
-  //     if (flight_data.altitude_m  < LANDED_THRESHOLD_M) {
+  //     if (altitude_agl_m  < LANDED_THRESHOLD_M) {
   //       current_phase = LANDED;
   //       Serial.println("LANDED");
   //     }
+  //   //default:
+      
+  //     //Serial.println("Default");
   //     // Insert final data handling
 
   // }

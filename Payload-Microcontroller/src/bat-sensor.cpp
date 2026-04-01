@@ -25,9 +25,9 @@ void readBatSensor(BatteryData &data) {
 	data.load_voltage_V = data.voltage_v + (shunt_voltage_mV / 1000.0);
 
 	float vsh_mV = INA.getShuntVoltage_mV();
-	Serial.print("Shunt (mV): ");
-	Serial.println(vsh_mV, 3);
+	//Serial.print("Shunt (mV): ");
+	//Serial.println(vsh_mV, 3);
 
-	Serial.print("Bus (V): ");
-	Serial.println(INA.getBusVoltage(), 3);
+	//Serial.print("Bus (V): ");
+	//Serial.println(INA.getBusVoltage(), 3);
 }
