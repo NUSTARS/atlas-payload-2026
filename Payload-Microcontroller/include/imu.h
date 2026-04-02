@@ -1,73 +1,33 @@
 // imu.h
+#pragma once
 
 #include <Arduino.h>
 
-// initIMU: (int) -> (int)
-// initializes the IMU by writing ASCII commands over serial to the IMU
-// baudRate: the baud rate for serial communication, defaults at 115200
-// returns 1 on successful connection, 0 otherwise
-int initIMU(int baudRate = 115200);
-
-
-// readIMU: (uint8_t*) -> (IMUData)
-// reads the asynchronous data stream from buffer and returns parsed IMU data
 struct IMUData {
-	double timeUTC;
-	float ypr[3];
-	float angularRate[3];
-	float accel[3];
-	double posLla[3];
-	float velBody[3];
-	uint16_t insStatus;
+    double timeUTC;
+    float ypr[3];
+    float angularRate[3];
+    float accel[3];
+    double posLla[3];
+    float velBody[3];
+    uint16_t insStatus;
 };
 
-IMUData readIMU(uint8_t* buffer);
+// Initialize Serial2 for the IMU at the given baud rate and send configuration commands.
+bool initIMU(uint32_t baudRate = 115200);
 
-// closeIMU: () -> (int)
-// closes the connection to the IMU
-// returns 1 on successful close, 0 otherwise
-int closeIMU();
+// Service the serial RX buffer. Call every main loop iteration.
+// Drains Serial2 into an internal buffer, assembles complete 88-byte packets,
+// validates CRC-16, and atomically publishes the latest valid packet.
+void serviceIMU();
 
-// IMUErrorCode: () -> (int)
-// Does something if we get the $VNERR message from the IMU
-int IMUErrorCode();
+// Copy the most recently published complete IMU packet into out.
+// Returns true if at least one valid packet has been received, false otherwise.
+// Safe to call from the 50Hz control ISR.
+bool getLatestIMUData(IMUData &out);
 
-// sendUARTCommand: (const char*) -> (void)
-// sends an ASCII command over UART to the IMU
-void sendUARTCommand(const char* command, unsigned int timeout_ms = 1000);
-
-// attachIMUTriggerISR: (uint8_t, void (*)()) -> (bool)
-// attaches an ISR that fires when the specified pin is pulled high
-// returns true if the pin supports interrupts and the ISR was attached
-bool attachIMUTriggerISR(uint8_t pin, void (*isr)());
+// Monotonic counter incremented each time a valid IMU frame is published.
+// Use this to run control exactly once per new IMU sample.
+uint32_t getIMUSequence();
 
 
-// Things we will have to do
-/**
- * == init function ==
- * set up uart communication (?)
- * Configure IMU settings
- * configure asynchronous data reading (should use binary bc fastest?)
- * 
- * 
- * == parse function ==
- * parse data
- * package data into array
- * do that a lot
- * 
- *
- * == close function ==
- * close connection to IMU
- */
-
-
-
-//  other notes to self:
-/**
- * We should use coning and sculling if our control loop rate is a good bit less than the IMU rate (which it is)
- * look into binary outputs - maybe faster
- * make sure to do ahrs if gnss is not available (VNWRG 67)
- * In general I should be doing the 3.X basic config commands for all components on the VN
- * Also decide what to do about the SyncIn rate and skip
- * 
- */
