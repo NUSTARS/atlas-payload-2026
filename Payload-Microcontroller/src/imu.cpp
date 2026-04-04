@@ -37,40 +37,77 @@ static uint16_t crc16_step(uint16_t crc, uint8_t byte) {
     return crc;
 }
 
+
+
+
+
+
+static inline uint64_t read_u64_raw(const uint8_t *p) {
+    return ((uint64_t) p[0] |
+            (uint64_t) p[1] << 8 |
+            (uint64_t) p[2] << 16 | 
+            (uint64_t) p[3] << 24 | 
+            (uint64_t) p[4] << 32 |
+            (uint64_t) p[5] << 40 | 
+            (uint64_t) p[6] << 48 | 
+            (uint64_t) p[7] << 56);
+}
+
+static inline uint32_t read_u32_raw(const uint8_t *p) {
+    return ((uint32_t) p[0] | 
+            (uint32_t) p[1] << 8 | 
+            (uint32_t) p[2] << 16 | 
+            (uint32_t) p[3] << 24);
+}
+
+static inline float read_f32(const uint8_t *p) {
+    uint32_t raw = read_u32_raw(p);
+    float val;
+    memcpy(&val, &raw, sizeof(val));
+    return val;
+}
+
+static inline double read_f64(const uint8_t *p) {
+    uint64_t raw = read_u64_raw(p);
+    double val;
+    memcpy(&val, &raw, sizeof(val));
+    return val;
+}
+
 // Frame parser
 // Parses a validated VN binary frame into imu_staging, then
 // atomically copies to imu_published with interrupts disabled.
 static void parseFrame(const uint8_t *frame) {
-    // frame[0] == 0xFA (already verified by serviceIMU)
-    uint8_t groupmask = frame[1];
+    if (frame[0] != 0xFA) { // invalid
+        // throw std::runtime_error("invalid message");
 
-    uint16_t masks[8] = {0};
-    int maskIdx = 0;
-    for (int i = 0; i < 8; i++) {
-        if (groupmask & (1 << i)) {
-            memcpy(&masks[i], &frame[2 + maskIdx * 2], 2);
-            maskIdx++;
-        }
     }
+    // Serial.println("parsing frame");
+    // // print frame for debugging
+    // for (size_t i = 0; i < FRAME_LEN; i++) {
+    //     Serial.print(frame[i], HEX); Serial.print(" ");
+    // }
+    imu_staging.timeUTC = read_u64_raw(&frame[4]) * 1e-6;
+    imu_staging.ypr[0] = read_f32(&frame[12]);
+    imu_staging.ypr[1] = read_f32(&frame[16]);
+    imu_staging.ypr[2] = read_f32(&frame[20]);
+    imu_staging.angularRate[0] = read_f32(&frame[24]);
+    imu_staging.angularRate[1] = read_f32(&frame[28]);
+    imu_staging.angularRate[2] = read_f32(&frame[32]);
+    imu_staging.posLla[0] = read_f64(&frame[36]);
+    imu_staging.posLla[1] = read_f64(&frame[44]);
+    imu_staging.posLla[2] = read_f64(&frame[52]);
+    imu_staging.velBody[0] = read_f32(&frame[60]);
+    imu_staging.velBody[1] = read_f32(&frame[64]);
+    imu_staging.velBody[2] = read_f32(&frame[68]);
+    imu_staging.accel[0] = read_f32(&frame[72]);
+    imu_staging.accel[1] = read_f32(&frame[76]);
+    imu_staging.accel[2] = read_f32(&frame[80]);
+    imu_staging.insStatus = ((uint16_t) frame[84] | ((uint16_t) frame[85] << 8));
 
-    const uint8_t *ptr = &frame[2 + maskIdx * 2];
-
-    // Group 1 (Common)
-    if (masks[0] & (1 << 3)) { memcpy(imu_staging.ypr,          ptr, 12); ptr += 12; }
-    if (masks[0] & (1 << 5)) { memcpy(imu_staging.angularRate,  ptr, 12); ptr += 12; }
-    if (masks[0] & (1 << 8)) { memcpy(imu_staging.accel,        ptr, 12); ptr += 12; }
-
-    // Group 2 (Time)
-    if (masks[1] & (1 << 6)) { memcpy(&imu_staging.timeUTC,     ptr,  8); ptr +=  8; }
-
-    // Group 6 (INS)
-    if (masks[5] & (1 << 0)) { memcpy(&imu_staging.insStatus,   ptr,  2); ptr +=  2; }
-    if (masks[5] & (1 << 1)) { memcpy(imu_staging.posLla,       ptr, 24); ptr += 24; }
-    if (masks[5] & (1 << 3)) { memcpy(imu_staging.velBody,      ptr, 12); ptr += 12; }
-
-    // send full frame to published buffer
+    // Atomically publish to the ISR-readable snapshot
     noInterrupts();
-    memcpy(&imu_published, &imu_staging, sizeof(IMUData));
+    imu_published = imu_staging;
     imu_valid = true;
     imu_seq++;
     interrupts();

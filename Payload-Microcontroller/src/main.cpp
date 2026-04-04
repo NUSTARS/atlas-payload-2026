@@ -99,6 +99,14 @@ void loop() {
   if (now_seq != last_seq) {
     last_seq = now_seq;
     if (getLatestIMUData(imu_data) && current_phase == RUN_CONTROLS) {
+      // debug printout of time and YPR of newest IMU packet
+      double time_s = imu_data.timeUTC * 1e-3;
+      Serial.print("Time: "); Serial.println(time_s, 3);
+      Serial.print("YPR: ");
+      Serial.print(imu_data.ypr[0], 2); Serial.print(", ");
+      Serial.print(imu_data.ypr[1], 2); Serial.print(", ");
+      Serial.println(imu_data.ypr[2], 2);
+
       float roll_heading  = imu_data.ypr[2];
       float roll_velocity = imu_data.angularRate[2];
 
@@ -109,16 +117,7 @@ void loop() {
   }
 
   // Debug output: very sparse to avoid blocking the 50Hz control path
-  counter++;
-  if (counter >= 500) {  // print every ~10 seconds at 50Hz
-    counter = 0;
-    // Serial.println("\033[H\033[2J");
-    Serial.print("Time: "); Serial.println(imu_data.timeUTC, 3);
-    Serial.print("YPR: ");
-    Serial.print(imu_data.ypr[0], 2); Serial.print(", ");
-    Serial.print(imu_data.ypr[1], 2); Serial.print(", ");
-    Serial.println(imu_data.ypr[2], 2);
-  }
+
 
 
   // readBatSensor(battery_data);

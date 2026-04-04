@@ -6,7 +6,7 @@
 
 // Tuning values
 // should all be positive
-const float P = 0.0;
+const float P = 10.0;
 const float I = 0.0;
 const float D = 0.0;
 const float ISaturate = 10.0;
