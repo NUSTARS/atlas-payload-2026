@@ -13,6 +13,8 @@ syncWord = 0x12
 power = 17 # max power
 preamble = 8 # matching stm
 
+startup = False
+
 # ALTITUDE (plotted) 2 bytes
 # ORIENTATION IN ALL 3 AXES (numbers & plot) 2*3=6 bytes
 # LONGITUDE AND LATITUDE (number) 2*8=16 bytes
@@ -88,6 +90,12 @@ if __name__ == "__main__":
     loralib.configure(fq, bw, cr, implicitHeader, sf, checkSum, syncWord, power, preamble)
     packet = Packet(*dummy_frames[0])
     while 1:
+        while startup == False:
+                command = loralib.receive()
+                if command == "START":
+                    startup = True
+                    loralib.transmit("ACK")
+
         for frame in dummy_frames:
             # idk if .update is the best way to do it 
             packet.update(frame)

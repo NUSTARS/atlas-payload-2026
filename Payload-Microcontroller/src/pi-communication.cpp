@@ -143,7 +143,7 @@ static void on_spi_rx() {
   mySPI.pushr(frame[tx_idx]);
   tx_idx++;
   if (tx_idx >= PKT_LEN) tx_idx = 0;
-  Serial.println("pinged");
+  // Serial.println("pinged");
 }
 
 void setup_slave() {

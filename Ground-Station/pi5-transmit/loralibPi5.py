@@ -497,6 +497,7 @@ def receive():
                 print("Payload length:", receivedbytes)
                 print("Message: ")
                 print(rx_message)
+                return rx_message
         time.sleep(1)
 
 def scan_spi_for_sx1276(

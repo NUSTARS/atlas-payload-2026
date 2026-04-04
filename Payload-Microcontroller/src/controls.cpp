@@ -54,3 +54,64 @@ void motorControl(float torque) {
     analogWrite(MOTOR_PWM_PIN, voltage);
 }
 
+
+void sendCmd(const char* cmd) {
+  Serial2.print(cmd);
+  Serial2.print('\n');
+  delay(50);
+}
+
+String readLine(uint32_t timeout_ms = 200) {
+  Serial2.setTimeout(timeout_ms);
+  String s = Serial2.readStringUntil('\n');
+  s.trim();
+  return s;
+}
+
+String queryODrive(const char* cmd) {
+  while (Serial2.available()) Serial2.read();
+  Serial2.print(cmd);
+  Serial2.print('\n');
+  return readLine();
+}
+
+
+void setupControls() {
+    Serial2.begin(115200);
+
+    // Put axis in IDLE first
+    sendCmd("w axis0.requested_state 1");
+    delay(200);
+
+    // Set velocity mode before requesting closed loop
+    sendCmd("w axis0.controller.config.control_mode 2");
+    delay(100);
+
+    // Optional: set a very small velocity directly
+    sendCmd("w axis0.controller.input_vel 0.2");
+    delay(100);
+
+    // Now try to enter closed loop
+    sendCmd("w axis0.requested_state 8");
+    delay(500);
+
+    // Print status
+    // Serial.print("active_errors: ");
+    // Serial.println(queryODrive("r axis0.active_errors"));
+
+    // Serial.print("disarm_reason: ");
+    // Serial.println(queryODrive("r axis0.disarm_reason"));
+
+    // Serial.print("current_state: ");
+    // Serial.println(queryODrive("r axis0.current_state"));
+
+    // Serial.print("input_vel: ");
+    // Serial.println(queryODrive("r axis0.controller.input_vel"));
+}
+
+void setVel() {
+    sendCmd("w axis0.controller.input_vel 0.2");
+
+    Serial.print("active_errors: ");
+    Serial.println(queryODrive("r axis0.active_errors"));
+}

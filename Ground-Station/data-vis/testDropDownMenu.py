@@ -60,6 +60,8 @@ BAUD_RATE = 115200      # match STM32 UART baud rate
 TIMEOUT = 1             # seconds
 SHOW_GRAPHS = True      # set to True to show scrolling line plots
 SAVE_DATA = False       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
+startup = False
+DEBUG = True
 
 firstDataPoint = True
 
@@ -79,6 +81,8 @@ statesInText = ["Standby", 'Launching', "Apogee"]
 
 bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [7] + [13] + [14]
 
+last_frame = None
+
 # --------------------------
 # Functions
 # --------------------------
@@ -87,15 +91,25 @@ def parse_message(msg):
         return None
     return struct.unpack('<Hhhh' + 'dd' + 'hhh' + 'BBBf', msg)  # same packing as in sample tx
 
+def debugprint(*args):
+    if DEBUG:
+        print(*args)
+
 # --------------------------
 # Setup Serial
 # --------------------------
 ser = serial.Serial(COM_PORT, BAUD_RATE, timeout=TIMEOUT)
 
 # --------------------------
+# Activate Payload
+# --------------------------
+input("Connect your STM32 and press Enter to send 'START'...")
+ser.write(b"START")
+print("Sent START command. Waiting for STM32 confirmation...")
+
+# --------------------------
 # Setup Matplotlib for numbers
 # --------------------------
-
 fig = plt.figure(figsize=(14, 8))
 
 def close_callback(event):
@@ -214,30 +228,68 @@ if SAVE_DATA == True:
 # --------------------------
 # Main loop
 # --------------------------
-
 try:
+    # while startup == False:
+        # if ser.in_waiting > 0:
+        #     # Use readline() because STM32 printf() ends with \r\n
+        #     line = ser.readline().decode('utf-8', errors='ignore').strip()
+            
+        #     if line:
+        #         print(f"[STM32]: {line}")
+                
+        #     # This string must match what you printf() in your C code 
+        #     # after the LoRa ACK is received.
+        #     if "Starting normal routine" in line:
+        #         print("Handshake confirmed! Opening plots...")
+        #         startup = True
+        #         time.sleep(1) # Small buffer to let UART clear
+        #         ser.reset_input_buffer() # Clear the "ACK" text so it doesn't mess up binary parsing
+            
     while plt.fignum_exists(fig.number):
-        
         rowmsg = ser.read(frameSize)
+        
         if len(rowmsg) != frameSize:
             continue
+        
+        # debugprint(rowmsg)
 
         ch_values = parse_message(rowmsg)
         if len(ch_values) != numVars:
             continue
+        
+        ch_values = list(ch_values)
+
+        # undo scaling from transmitter
+        ch_values[0] /= 1000  # altitude
+
+        ch_values[1] /= 1000  # orientationX
+        ch_values[2] /= 1000  # orientationY
+        ch_values[3] /= 1000  # orientationZ
+
+        ch_values[6] /= 1000  # velocityX
+        ch_values[7] /= 1000  # velocityY
+        ch_values[8] /= 1000  # velocityZ
+
+        ch_values = tuple(ch_values)
     
         if firstDataPoint == True:
             startingLong = ch_values[longlatitudes[0]]
             startingLat = ch_values[longlatitudes[1]]
             firstDataPoint = False
+            
+        debugprint(ch_values)
 
         ch_values = ch_values + ((ch_values[longlatitudes[0]] - startingLong),)
         ch_values = ch_values + ((ch_values[longlatitudes[1]] - startingLat),)
 
         # if abs(ch_values[orientationPlot[0]]) > 1000:
         #     continue
-
-        print(ch_values)
+        # frame_counter = ch_values[11]
+        # if last_frame is not None:
+        #     if (frame_counter - last_frame) % 256 != 1:
+        #         print(f"Dropped or out-of-order packet: {last_frame} → {frame_counter}")
+        #         continue  # skip bad packet
+        # last_frame = frame_counter
 
         battery_value = ch_values[batteryVoltage[0]]
 
@@ -270,7 +322,6 @@ try:
         # -----------------------
         # Update Big Numbers
         # -----------------------
-
         for txt, idx in zip(number_texts, bigNumberDisplayOnly):
             if idx == state[0]:  # if this is the state value
                 state_index = ch_values[idx]
@@ -342,7 +393,9 @@ try:
         # -----------------------
         # Refresh ONE figure
         # -----------------------
-        plt.pause(0.001)
+        # plt.pause(0.001)
+        fig.canvas.draw_idle()
+        fig.canvas.flush_events()
 
         time.sleep(0.05)
 

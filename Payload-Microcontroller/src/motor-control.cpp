@@ -55,7 +55,7 @@ void loop() {
     Serial.println("Timeout: No response from ODrive");
   }
 
-  delay(500);
+  delay(50);
 }
 
  
