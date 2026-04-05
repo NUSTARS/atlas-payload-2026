@@ -21,13 +21,15 @@ sh2_SensorValue_t val;
 // Setup BNO08x over I2C (Wire1)
 // =====================
 bool initIMU() {
-  Wire1.begin();          // use SDA1 / SCL1
-  // Optional:
-  // Wire1.setClock(400000);
+  Wire1.begin();          // use SDA1 / SCL1 at default 100 kHz for init
 
   // Serial.println("Before begin_I2C (Wire1)");
   bool ok = bno.begin_I2C(0x4A, &Wire1);  // explicitly pass Wire1
   // Serial.println("After begin_I2C");
+
+  // Raise to 400 kHz only after successful handshake — setting it before
+  // begin_I2C causes init failure because the chip isn't ready for fast-mode yet
+  if (ok) Wire1.setClock(400000);
 
   if (!ok) {
     Serial.println("ERROR: BNO08x not detected over I2C (Wire1)");
@@ -55,11 +57,21 @@ bool initIMU() {
   return true;
 }
 
+// Bitmask flags for which sensor fields were updated in a readIMU() call
+static constexpr uint8_t IMU_GOT_ACCEL  = 0x01;
+static constexpr uint8_t IMU_GOT_GYRO   = 0x02;
+static constexpr uint8_t IMU_GOT_ROTVEC = 0x04;
+static constexpr uint8_t IMU_GOT_ALL    = IMU_GOT_ACCEL | IMU_GOT_GYRO | IMU_GOT_ROTVEC;
+
 // =====================
-// Update IMUData directly from BNO events
+// Update IMUData directly from BNO events.
+// Returns a bitmask of which fields were actually updated this call (IMU_GOT_*).
+// Fields not updated retain their previous values — callers should check the
+// bitmask before trusting data, to avoid using stale carried-over values.
 // =====================
-void readIMU(IMUData &data) {
+uint8_t readIMU(IMUData &data) {
   data.timeUTC = 0.001 * (double)millis();
+  uint8_t got = 0;
 
   for (int n = 0; n < 20; n++) {
     if (!bno.getSensorEvent(&val)) break;
@@ -69,12 +81,14 @@ void readIMU(IMUData &data) {
         data.accel[0] = val.un.accelerometer.x;
         data.accel[1] = val.un.accelerometer.y;
         data.accel[2] = val.un.accelerometer.z;
+        got |= IMU_GOT_ACCEL;
         break;
 
       case SH2_GYROSCOPE_CALIBRATED:
         data.angularRate[0] = val.un.gyroscope.x;
         data.angularRate[1] = val.un.gyroscope.y;
         data.angularRate[2] = val.un.gyroscope.z;
+        got |= IMU_GOT_GYRO;
         break;
 
       case SH2_ROTATION_VECTOR: {
@@ -97,8 +111,11 @@ void readIMU(IMUData &data) {
         float sinr_cosp = 2.0f * (w * x + y * z);
         float cosr_cosp = 1.0f - 2.0f * (x * x + y * y);
         data.ypr[2] = atan2f(sinr_cosp, cosr_cosp);
+        got |= IMU_GOT_ROTVEC;
         break;
       }
     }
   }
+
+  return got;
 }
