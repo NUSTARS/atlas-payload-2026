@@ -20,3 +20,15 @@ float feedForwardControl(float angularAcc);
 // sends a PWM signal to the motor encoder
 // to command the appropriate torque response
 void motorControl(float torque);
+
+
+// TEST UART 
+void sendCmd(const char* cmd);
+
+String readLine(uint32_t timeout_ms = 200);
+
+String queryODrive(const char* cmd);
+
+void setupControls();
+
+void setVel();

@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 struct IMUData {
-    double timeUTC;
+    uint64_t timeUTC; // in ms
     float ypr[3];
     float angularRate[3];
     float accel[3];

@@ -4,7 +4,7 @@
 #include <bat-sensor.h>
 #include <controls.h>
 #include <pi-communication.h>
-// #include <KalmanFilter.h>
+#include <KalmanFilter.h>
 #include <imu.h>
 
 // DEFINES =========================================================================
@@ -34,19 +34,57 @@ flight_phase current_phase = flight_phase::RUN_CONTROLS;
 
 AltimeterData flight_data;
 
-// KalmanFilter kf;
+KalmanFilter kf;
 
 IMUData imu_data;
 
 BatteryData battery_data;
 
+IntervalTimer control_timer;
+
+// INTERRUPTS ======================================================================
+void controlInterrupt() {
+  Serial.println("controls");
+
+  readIMU(imu_data);
+  spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
+  
+  // kalman filter
+  float roll_heading = imu_data.ypr[2]; 
+  float roll_velocity = imu_data.angularRate[2];
+  Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
+  // FIXME update timestep
+  kf.predict();
+  kf.update(z);
+  Eigen::Vector3f x_hat = kf.state();
+  Serial.print("Meas:/t");
+  Serial.print(roll_heading,6); Serial.println(roll_velocity,6);
+  Serial.print("xhat:/t");
+  Serial.print(x_hat(0),6); Serial.print(x_hat(1),6); Serial.println(x_hat(2),6);
+  
+
+
+  
+  // only continue if we are running controls
+  if (current_phase != RUN_CONTROLS) return;
+
+  // get pid value
+  float pid_result = PIDControl(x_hat[0], x_hat[1]);
+  // get feed-forward value
+  float ff_result = feedForwardControl(x_hat[2]);
+  // command motor
+  motorControl(pid_result + ff_result);
+}
+
 // SETUP ===========================================================================
 void setup() {
   Serial.begin(115200);
-  delay(1500);
+  // delay(1500);
 
-  // setup_slave();
-  // Serial.println("set up teensy as slave");
+  setup_slave();
+  Serial.println("set up teensy as slave");
+
+  setupControls();
 
   // bool bat_sensor_setup = initBatSensor();
   // Serial.println("set up battery sensor!");
@@ -74,11 +112,13 @@ void setup() {
   Serial.println("set up serial IMU on Serial2!");
 
   // Initialize Kalman Filter
-  // float dt0 = CONTROL_PERIOD_us * 1e-6f; // seconds
-  // float roll_heading0 = 0.0;
-  // float roll_velocity0 = 0.0;
-  // Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
-  // kf.init(dt0, z0);
+  float dt0 = CONTROL_PERIOD_us * 1e-6f; // seconds
+  // // FIXME read imu and store to
+  float roll_heading0 = 0.0;
+  float roll_velocity0 = 0.0;
+  Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
+  kf.init(dt0, z0);
+
 
   // call buzzer
   pinMode(BUZZER_PIN, OUTPUT);
@@ -86,6 +126,10 @@ void setup() {
 
   delay(500);
   digitalWrite(BUZZER_PIN, LOW);
+
+  // Start IMU data collection + control interrupt
+  control_timer.priority(0);
+  control_timer.begin(controlInterrupt, CONTROL_PERIOD_us);
 }
 int counter = 0;
 // LOOP ============================================================================
@@ -99,6 +143,14 @@ void loop() {
   if (now_seq != last_seq) {
     last_seq = now_seq;
     if (getLatestIMUData(imu_data) && current_phase == RUN_CONTROLS) {
+      // debug printout of time and YPR of newest IMU packet
+      double time_s = imu_data.timeUTC * 1e-3;
+      Serial.print("Time: "); Serial.println(time_s, 3);
+      Serial.print("YPR: ");
+      Serial.print(imu_data.ypr[0], 2); Serial.print(", ");
+      Serial.print(imu_data.ypr[1], 2); Serial.print(", ");
+      Serial.println(imu_data.ypr[2], 2);
+
       float roll_heading  = imu_data.ypr[2];
       float roll_velocity = imu_data.angularRate[2];
 
@@ -109,16 +161,7 @@ void loop() {
   }
 
   // Debug output: very sparse to avoid blocking the 50Hz control path
-  counter++;
-  if (counter >= 500) {  // print every ~10 seconds at 50Hz
-    counter = 0;
-    // Serial.println("\033[H\033[2J");
-    Serial.print("Time: "); Serial.println(imu_data.timeUTC, 3);
-    Serial.print("YPR: ");
-    Serial.print(imu_data.ypr[0], 2); Serial.print(", ");
-    Serial.print(imu_data.ypr[1], 2); Serial.print(", ");
-    Serial.println(imu_data.ypr[2], 2);
-  }
+
 
 
   // readBatSensor(battery_data);
@@ -130,9 +173,12 @@ void loop() {
 
   // readAltimeter(flight_data);
   // Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
-  // // Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
+  // Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
   // Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
-  // // Serial.println();
+  // Serial.println();
+
+
+  // Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
 
   // static unsigned long prevSend = 0;
   // if (millis() - prevSend >= 10) { // 100 Hz packet publish
@@ -152,7 +198,9 @@ void loop() {
   //   prevSend = millis();
   // }
 
-  // Serial.print("Current Phase: "); Serial.println(current_phase);
+  // // Serial.print("Current Phase: "); Serial.println(current_phase);
+
+  // setVel();
 
   // float altitude_agl_m = flight_data.altitude_m - base_altitude_m;
   // switch (current_phase) {
@@ -199,4 +247,3 @@ void loop() {
   // }
 
 }
-
