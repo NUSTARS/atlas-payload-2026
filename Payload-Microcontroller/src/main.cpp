@@ -90,7 +90,6 @@ void setup() {
   Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
   kf.init(dt0, z0);
 
-
   // call buzzer
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, HIGH);
@@ -107,6 +106,8 @@ void loop() {
   // Run control immediately when a new IMU frame is published.
   static uint32_t last_seq = 0;
   uint32_t now_seq = getIMUSequence();
+  // Serial.print('Here');
+
   if (now_seq != last_seq) {
     last_seq = now_seq;
     if (getLatestIMUData(imu_data) && current_phase == RUN_CONTROLS) {
@@ -125,14 +126,38 @@ void loop() {
       float roll_heading = imu_data.ypr[2]; 
       float roll_velocity = imu_data.angularRate[2];
       Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
-      // FIXME update timestep
+
+      uint32_t ts_us = micros();
       kf.predict();
+      Eigen::Vector3f predx = kf.state();
+      Serial.print("predx:\t");
+      Serial.print(predx(0), 6); Serial.print("\t");
+      Serial.println(predx(1), 6);
       kf.update(z);
+      uint32_t tf_us = micros();
+
       Eigen::Vector3f x_hat = kf.state();
-      // Serial.print("Meas:/t");
-      // Serial.print(roll_heading,6); Serial.println(roll_velocity,6);
-      // Serial.print("xhat:/t");
-      // Serial.print(x_hat(0),6); Serial.print(x_hat(1),6); Serial.println(x_hat(2),6);
+      Serial.print("updx:\t");
+      Serial.print(x_hat(0), 6); Serial.print("\t");
+      Serial.print(x_hat(1), 6); Serial.print("\t");
+      Serial.println(x_hat(2), 6);
+
+      auto y = kf.innovation();
+      Serial.print("y:  \t");
+      Serial.print(y(0), 6); Serial.print("\t");
+      Serial.println(y(1), 6);
+      Serial.print("Kalman Time (us): "); Serial.println(tf_us - ts_us); 
+      Serial.println("--");
+
+
+      // FIXME update timestep
+      // kf.predict();
+      // kf.update(z);
+      // Eigen::Vector3f x_hat = kf.state();
+      // Serial.print("Meas:\t");
+      // Serial.print(roll_heading,6); Serial.print("\t"); Serial.println(roll_velocity,6);
+      // Serial.print("xhat:\t");
+      // Serial.print(x_hat(0),6); Serial.print("\t"); Serial.print(x_hat(1),6); Serial.print("\t"); Serial.println(x_hat(2),6);
       
 
 
