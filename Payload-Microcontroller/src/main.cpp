@@ -14,7 +14,8 @@ enum flight_phase {
   ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD,
   DESCENDING,
   RUN_CONTROLS,
-  LANDED
+  LANDED,
+  TUNING
 };
 
 #define POST_BOOST_THRESHOLD_M 112
@@ -43,38 +44,8 @@ BatteryData battery_data;
 IntervalTimer control_timer;
 
 // INTERRUPTS ======================================================================
-void controlInterrupt() {
-  Serial.println("controls");
 
-  readIMU(imu_data);
-  spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
-  
-  // kalman filter
-  float roll_heading = imu_data.ypr[2]; 
-  float roll_velocity = imu_data.angularRate[2];
-  Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
-  // FIXME update timestep
-  kf.predict();
-  kf.update(z);
-  Eigen::Vector3f x_hat = kf.state();
-  Serial.print("Meas:/t");
-  Serial.print(roll_heading,6); Serial.println(roll_velocity,6);
-  Serial.print("xhat:/t");
-  Serial.print(x_hat(0),6); Serial.print(x_hat(1),6); Serial.println(x_hat(2),6);
-  
-
-
-  
-  // only continue if we are running controls
-  if (current_phase != RUN_CONTROLS) return;
-
-  // get pid value
-  float pid_result = PIDControl(x_hat[0], x_hat[1]);
-  // get feed-forward value
-  float ff_result = feedForwardControl(x_hat[2]);
-  // command motor
-  motorControl(pid_result + ff_result);
-}
+// control interrupt has been deleted and that stuff has moved to main loop
 
 // SETUP ===========================================================================
 void setup() {
@@ -112,7 +83,7 @@ void setup() {
   Serial.println("set up serial IMU on Serial2!");
 
   // Initialize Kalman Filter
-  float dt0 = CONTROL_PERIOD_us * 1e-6f; // seconds
+  float dt0 = 1/100.0f; // seconds
   // // FIXME read imu and store to
   float roll_heading0 = 0.0;
   float roll_velocity0 = 0.0;
@@ -126,10 +97,6 @@ void setup() {
 
   delay(500);
   digitalWrite(BUZZER_PIN, LOW);
-
-  // Start IMU data collection + control interrupt
-  control_timer.priority(0);
-  control_timer.begin(controlInterrupt, CONTROL_PERIOD_us);
 }
 int counter = 0;
 // LOOP ============================================================================
@@ -147,15 +114,37 @@ void loop() {
       double time_s = imu_data.timeUTC * 1e-3;
       Serial.print("Time: "); Serial.println(time_s, 3);
       Serial.print("YPR: ");
-      Serial.print(imu_data.ypr[0], 2); Serial.print(", ");
-      Serial.print(imu_data.ypr[1], 2); Serial.print(", ");
-      Serial.println(imu_data.ypr[2], 2);
+      Serial.print(imu_data.ypr[0], 4); Serial.print(", ");
+      Serial.print(imu_data.ypr[1], 4); Serial.print(", ");
+      Serial.println(imu_data.ypr[2], 4);
 
-      float roll_heading  = imu_data.ypr[2];
+      
+      spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
+      
+      // kalman filter
+      float roll_heading = imu_data.ypr[2]; 
       float roll_velocity = imu_data.angularRate[2];
+      Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
+      // FIXME update timestep
+      kf.predict();
+      kf.update(z);
+      Eigen::Vector3f x_hat = kf.state();
+      // Serial.print("Meas:/t");
+      // Serial.print(roll_heading,6); Serial.println(roll_velocity,6);
+      // Serial.print("xhat:/t");
+      // Serial.print(x_hat(0),6); Serial.print(x_hat(1),6); Serial.println(x_hat(2),6);
+      
 
-      float pid_result = PIDControl(roll_heading, roll_velocity);
-      float ff_result  = feedForwardControl(0.0f);
+
+      
+      // only continue if we are running controls
+      if (current_phase != RUN_CONTROLS) return;
+
+      // get pid value
+      float pid_result = PIDControl(x_hat[0], x_hat[1]);
+      // get feed-forward value
+      float ff_result = feedForwardControl(x_hat[2]);
+      // command motor
       motorControl(pid_result + ff_result);
     }
   }
