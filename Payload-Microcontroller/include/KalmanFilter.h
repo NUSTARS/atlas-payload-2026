@@ -1,19 +1,6 @@
 
 #include <ArduinoEigen.h>
 
-Eigen::Vector<float,2> meas_vector(float roll_heading, float roll_velocity) {
-    // angle conversion
-    static constexpr bool CONVERT_TO_RADIANS = false;
-    if (CONVERT_TO_RADIANS) {
-        roll_heading = roll_heading * 0.017453292519943295f;
-        roll_velocity = -roll_velocity;
-    } else {
-        roll_heading = roll_heading; 
-        roll_velocity = -roll_velocity * 57.2957795131f;
-    }
-    return Eigen::Vector<float,2> {roll_heading, roll_velocity};
-}
-
 // Original white-noise based Kalman Filter
 class KalmanFilter {
     private:
@@ -25,16 +12,14 @@ class KalmanFilter {
         Eigen::Matrix<float, 3, 1> x_hat;
         Eigen::Vector<float,2> y;
 
-        const float var_phi = 1e-7;//0.2f * 0.2f;
+        const float var_phi = 0.2f * 0.2f; //1e-5;
         const float noise_density = 0.0035f; // deg/s/sqrt(Hz)
         const float BW = 265.0f;
-        const float var_omega = 1e-5;//noise_density * noise_density * BW;
+        const float var_omega = noise_density * noise_density * BW; // 1e-6;
 
-        const float var_process = 1e5f;
-        // const float damping = -0.1f;
-        // const float accel_passthrough = 0.95f;
-        const float damping = 0;//-0.1f;
-        const float accel_passthrough = 0.95f;// 0.95f;
+        const float var_process = 1e10f;
+        const float damping = -0.1f;
+        const float accel_passthrough = 0.95f;
         bool initialized;
 
 public:
@@ -61,3 +46,5 @@ public:
     const Eigen::Matrix<float,3,2> getK() const { return K; } // getter for state covariance matrix
     const Eigen::Vector<float,2> innovation() const { return y; }
 };
+
+Eigen::Vector<float,2> meas_vector(float roll_heading, float roll_velocity);
