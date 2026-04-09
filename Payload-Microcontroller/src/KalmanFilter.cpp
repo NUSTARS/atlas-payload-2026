@@ -40,7 +40,7 @@ void KalmanFilter::predict() {
 
 void KalmanFilter::update(Eigen::Vector<float,2> z) {
      // this is the innovation ie the error
-    Eigen::Vector<float,2> y;
+    // Eigen::Vector<float,2> y;
     y = z - H*x_hat;
 
     // S isn't an important matrix aside from fine tuning the filter
@@ -119,3 +119,23 @@ void KalmanFilter::update_timestep(float dt) {
     Q(2,0) = dt3/6.0f; Q(2,1) = dt2/2.0f; Q(2,2) = dt;
     Q *= var_process; // multiple by the factor 
 }
+<<<<<<< HEAD
+=======
+
+Eigen::Vector<float,2> meas_vector(float roll_heading, float roll_velocity) {
+    // angle conversion
+    static constexpr bool CONVERT_TO_RADIANS = false;
+    // if (CONVERT_TO_RADIANS) {
+    //     roll_heading = roll_heading * 0.017453292519943295f;
+    //     roll_velocity = -roll_velocity;
+    // } else {
+    //     roll_heading = roll_heading; 
+    //     roll_velocity = -roll_velocity * 57.2957795131f;
+    // }
+    if (!CONVERT_TO_RADIANS) {
+        roll_heading = roll_heading * 57.29577f;
+        roll_velocity = roll_velocity * 57.29577f;
+    }
+    return Eigen::Vector<float,2> {roll_heading, roll_velocity};
+}
+>>>>>>> 8e3101f3382702e183994b8e6453d997fa26f2b8

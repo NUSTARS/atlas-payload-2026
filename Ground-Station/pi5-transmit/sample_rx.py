@@ -1,4 +1,4 @@
-# completely unchanged
+# # completely unchanged
 
 import loralibPi5 as loralib
 import time
@@ -22,4 +22,5 @@ if __name__ == "__main__":
     loralib.setSyncWord(0x12)
 
     loralib.receive()
-    time.sleep(0.1)    
+    time.sleep(0.1)
+

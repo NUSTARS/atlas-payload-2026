@@ -6,7 +6,7 @@ from dataclasses import dataclass
 fq = 915000000 # 915 MHz
 bw = 125 # 125 kHz
 cr = 1 # 4/5 coding rate
-implicitHeader = True # implicit header
+implicitHeader = False # implicit header
 sf = 7 # 7 spreading factor (default)
 checkSum = True # enabling CRC
 syncWord = 0x12
