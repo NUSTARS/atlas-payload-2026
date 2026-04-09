@@ -125,81 +125,78 @@ int main(void)
 //      printf("LoRa Version: 0x%02X (%u)\r\n", ver, ver);
   }
 
-  uint8_t start_msg[] = "START";
-  uint8_t msg_len = 5;
-  char start_cmd[6] = {0}; // To hold "START" + null terminator
-  lora_mode_receive_continuous(&lora);
+  typedef enum {
+      STATE_WAIT_FOR_UART,
+      STATE_HANDSHAKE_TX,
+      STATE_NORMAL_OP
+  } system_state_t;
+
+  system_state_t current_state = STATE_WAIT_FOR_UART;
+  uint8_t lora_res;
+  char start_cmd[6] = {0};
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-//  while (1)
-//  {
-//  		  if (HAL_UART_Receive(&huart2, (uint8_t*)start_cmd, 5, HAL_MAX_DELAY) == HAL_OK) {
-//  			  start_cmd[5] = '\0'; // Ensure string is null-terminated
-//
-//  			  if (strcmp(start_cmd, "START") == 0) {
-//  				  printf("Command received! Starting LoRa...\r\n");
-//  				  uint8_t res = lora_send_packet_blocking(&lora, start_msg, msg_len, 5000);
-//  				  while (res != LORA_OK) {
-//  					  printf("Send failed! Trying again...\r\n");
-//  					  res = lora_send_packet_blocking(&lora, start_msg, msg_len, 5000);
-//  					  HAL_Delay(100);
-//  					  // Send failed
-//  				  }
-//  				  printf("Send successful! Waiting for ACK and then entering receiving mode...\r\n");
-//  				  // Put LoRa modem into continuous receive mode
-//  				  lora_mode_receive_continuous(&lora);
-//
-//  				  uint8_t ack_buffer[10];
-//  				  uint8_t ack_len = lora_receive_packet_blocking(&lora, ack_buffer, sizeof(ack_buffer), 5000, &res);
-//
-//  				  if (res == LORA_OK && ack_len >= 3) {
-//  					  // Check if the received data actually says "ACK"
-//  					  if (memcmp(ack_buffer, "ACK", 3) == 0) {
-//  						  printf("ACK received! Handshake complete. Starting normal routine...\r\n");
-//  						  break; // SUCCESS: Exit loop to start main receive
-//  					  } else {
-//  						  printf("Received something, but it wasn't ACK.\r\n");
-//  						  HAL_UART_Transmit(&huart2,
-//  								  ack_buffer,
-//								  ack_len,
-//								  100);
-//  					  }
-//  				  } else {
-//  					  printf("ACK timeout. Transmitter did not respond. Starting normal routine. \r\n");
-//  					  break;
-//  				  }
-//  			  } else {
-//  				  printf("Invalid command. Received: %s\r\n", start_cmd);
-//  				  // Optional: Clear buffer or wait for next attempt
-//  			  }
-//  			  break;
-//  		  }
-//  }
-
   while (1)
   {
-//	  	if (lora_is_packet_available(&lora)) {
-//	  		lora_receive_packet(&lora, buffer, buf_len, NULL);
-//	  		int8_t rssi = lora_packet_rssi(&lora);
-//	  		uint8_t snr = lora_packet_snr(&lora);
-//	  		HAL_UART_Transmit(&huart2, buffer, buf_len, HAL_MAX_DELAY);
-//	  	}
-	    // Wait for packet up to 10sec
-	  uint8_t res;
+	  switch (current_state) {
 
-	  uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
-	    // added for rylr
-	  if (res == LORA_OK && len > 0) {
-		  HAL_UART_Transmit(&huart2,
-				  buffer,
-				  len,
-				  100);
+	  case STATE_WAIT_FOR_UART:
+		  // Non-blocking or short-timeout UART check
+		  if (HAL_UART_Receive(&huart2, (uint8_t*)start_cmd, 5, 100) == HAL_OK) {
+			  start_cmd[5] = '\0';
+			  if (strcmp(start_cmd, "START") == 0) {
+				  printf("UART Command Received. Initiating Handshake...\r\n");
+				  current_state = STATE_HANDSHAKE_TX;
+			  }
+		  }
+		  break;
+
+	  case STATE_HANDSHAKE_TX:
+//		   Try to send "START" packet to Pi
+		  if (lora_send_packet_blocking(&lora, (uint8_t*)"START", 5, 2000) == LORA_OK) {
+			  printf("Handshake sent! Waiting for ACK...\r\n");
+
+			  lora_mode_standby(&lora);          
+			  HAL_Delay(10);
+			  lora_clear_interrupt_rx_all(&lora);
+			  lora_mode_receive_continuous(&lora);
+
+			  uint8_t ack_buffer[10];
+			  uint8_t ack_len = lora_receive_packet_blocking(&lora, ack_buffer, sizeof(ack_buffer), 5000, &lora_res);
+
+			  if (lora_res == LORA_OK && memcmp(ack_buffer, "ACK", 3) == 0) {
+				  printf("ACK received! Starting normal routine.\r\n");
+				  current_state = STATE_NORMAL_OP;
+			  } else {
+//				  printf("Handshake failed (Timeout/No ACK). Retrying...\r\n");
+
+				  printf("Handshake failed (Timeout/No ACK). Giving up. Starting normal routine...\r\n");
+				  lora_mode_receive_continuous(&lora);
+				  current_state = STATE_NORMAL_OP;
+			  }
+		  }
+		  break;
+
+	  case STATE_NORMAL_OP:
+	  {
+		  uint8_t res;
+
+		  uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
+		  // added for rylr
+		  if (res == LORA_OK && len > 0) {
+			  HAL_UART_Transmit(&huart2,
+					  buffer,
+					  len,
+					  100);
+	        	  	  	  }
 	  }
-
+	  break;
+  }
 
     /* USER CODE END WHILE */
 

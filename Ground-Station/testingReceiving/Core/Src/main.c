@@ -118,11 +118,7 @@ int main(void)
   uint8_t res = lora_init(&lora, &hspi1, GPIOB, GPIO_PIN_6, LORA_BASE_FREQUENCY_US);
 
   if (res != LORA_OK) {
-//      printf("LoRa init failed\r\n");
-	  lora_set_crc(&lora, 1);
-  } else {
-      uint8_t ver = lora_version(&lora);
-//      printf("LoRa Version: 0x%02X (%u)\r\n", ver, ver);
+
   }
 
   typedef enum {
@@ -143,56 +139,7 @@ int main(void)
 
   while (1)
   {
-	  switch (current_state) {
-
-	  case STATE_WAIT_FOR_UART:
-		  // Non-blocking or short-timeout UART check
-		  if (HAL_UART_Receive(&huart2, (uint8_t*)start_cmd, 5, 100) == HAL_OK) {
-			  start_cmd[5] = '\0';
-			  if (strcmp(start_cmd, "START") == 0) {
-				  printf("UART Command Received. Initiating Handshake...\r\n");
-				  current_state = STATE_HANDSHAKE_TX;
-			  }
-		  }
-		  break;
-
-	  case STATE_HANDSHAKE_TX:
-		   Try to send "START" packet to Pi
-		  if (lora_send_packet_blocking(&lora, (uint8_t*)"START", 5, 2000) == LORA_OK) {
-			  printf("Handshake sent! Waiting for ACK...\r\n");
-//			  lora_mode_receive_continuous(&lora);
-
-			  uint8_t ack_buffer[10];
-			  uint8_t ack_len = lora_receive_packet_blocking(&lora, ack_buffer, sizeof(ack_buffer), 5000, &lora_res);
-
-			  if (lora_res == LORA_OK && memcmp(ack_buffer, "ACK", 3) == 0) {
-				  printf("ACK received! Starting normal routine.\r\n");
-				  current_state = STATE_NORMAL_OP;
-			  } else {
-//				  printf("Handshake failed (Timeout/No ACK). Retrying...\r\n");
-
-				  printf("Handshake failed (Timeout/No ACK). Giving up. Starting normal routine...\r\n");
-				  current_state = STATE_NORMAL_OP;
-			  }
-		  }
-		  break;
-
-	  case STATE_NORMAL_OP:
-	  {
-		  lora_mode_receive_continuous(&lora);
-		  uint8_t res;
-
-		  uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
-		  // added for rylr
-		  if (res == LORA_OK && len > 0) {
-			  HAL_UART_Transmit(&huart2,
-					  buffer,
-					  len,
-					  100);
-	        	  	  	  }
-	  }
-	  break;
-  }
+	  lora_send_packet_blocking(&lora, (uint8_t*)"START", 5, 2000);
 
     /* USER CODE END WHILE */
 
