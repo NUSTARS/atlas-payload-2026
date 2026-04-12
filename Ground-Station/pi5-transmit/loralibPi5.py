@@ -531,11 +531,7 @@ def receive():
                 print("Payload length:", receivedbytes)
                 print("Message: ")
                 print(rx_message)
-<<<<<<< HEAD
-        time.sleep(1)
-=======
                 return rx_message
->>>>>>> 00b7d44 (working code for stm and rpi communication both ways)
 
 def scan_spi_for_sx1276(
     buses=(1,),

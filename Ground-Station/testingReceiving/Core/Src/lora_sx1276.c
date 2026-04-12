@@ -710,14 +710,9 @@ uint8_t lora_init(lora_sx1276 *lora, SPI_HandleTypeDef *spi, GPIO_TypeDef *nss_p
   lora_set_frequency(lora, freq);
   lora_set_spreading_factor(lora, LORA_DEFAULT_SF);
   lora_set_preamble_length(lora, LORA_DEFAULT_PREAMBLE_LEN);
-<<<<<<< HEAD
-  // Set as implicit header mode CHANGED FOR TESTING RYLR IT'S ON
-  lora_set_implicit_header_mode(lora);
-=======
   // Set as explicit header mode
   lora_set_explicit_header_mode(lora);
 //  lora_set_implicit_header_mode(lora);
->>>>>>> 00b7d44 (working code for stm and rpi communication both ways)
   // Set LNA boost
   uint8_t current_lna = read_register(lora, REG_LNA);
   write_register(lora, REG_LNA,  current_lna | 0x03);
