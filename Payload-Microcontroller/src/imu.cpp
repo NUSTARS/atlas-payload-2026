@@ -37,11 +37,6 @@ static uint16_t crc16_step(uint16_t crc, uint8_t byte) {
     return crc;
 }
 
-
-
-
-
-
 static inline uint64_t read_u64_raw(const uint8_t *p) {
     return ((uint64_t) p[0] |
             (uint64_t) p[1] << 8 |
