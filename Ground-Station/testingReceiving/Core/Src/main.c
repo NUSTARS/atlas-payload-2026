@@ -110,11 +110,13 @@ int main(void)
   /* USER CODE BEGIN 2 */
   lora_sx1276 lora;
 
+  // reset chip
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
   HAL_Delay(.1);
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
   HAL_Delay(5);
 
+  // initialize lora chip
   uint8_t res = lora_init(&lora, &hspi1, GPIOB, GPIO_PIN_6, LORA_BASE_FREQUENCY_US);
 
   if (res != LORA_OK) {
@@ -126,12 +128,14 @@ int main(void)
   }
   // Put LoRa modem into continuous receive mode
 
+  // states that the stm will be switching from
   typedef enum {
     STATE_WAIT_FOR_UART,
     STATE_HANDSHAKE_TX,
     STATE_NORMAL_OP
   } SystemState_t;
 
+  // start at beginning
   SystemState_t current_state = STATE_WAIT_FOR_UART;
   char start_cmd[6];
 
@@ -145,6 +149,7 @@ int main(void)
   {
 	  switch (current_state) {
 
+	  // this is before we want the stm to send the start command to the pi
 	  case STATE_WAIT_FOR_UART:
 		  // Non-blocking or short-timeout UART check
 		  if (HAL_UART_Receive(&huart2, (uint8_t*)start_cmd, 5, 100) == HAL_OK) {
@@ -156,7 +161,9 @@ int main(void)
 		  }
 		  break;
 
+	  // after it gets a command to start the pi, it does this
 	  case STATE_HANDSHAKE_TX:
+		  // send START to pi, and wait to receive
 	      if (lora_send_packet_blocking(&lora, (uint8_t*)"START", 5, 2000) == LORA_OK) {
 	          printf("Handshake sent! Waiting for ACK...\r\n");
 
@@ -169,11 +176,15 @@ int main(void)
 	          uint8_t lora_res_code;
 	          uint8_t ack_len = lora_receive_packet_blocking(&lora, ack_buffer, sizeof(ack_buffer), 5000, &lora_res_code);
 
+	          // check that we receive something and didn't just time out
 	          if (lora_res_code == LORA_OK && ack_len >= 3) {
+	        	  // compare what we receive to the ACK
 	              if (memcmp(ack_buffer, "ACK", 3) == 0) {
 	                  printf("ACK received! Starting normal routine.\r\n");
 	                  current_state = STATE_NORMAL_OP;
-	              } else {
+	              }
+	              // if we receive something but it's wrong, print it out so we know what's wrong
+	              else {
 	                  printf("Received unknown packet: %.*s\r\n", ack_len, (char*)ack_buffer);
 	                  printf("Unknown: ");
 	                  for(int i=0; i<ack_len; i++) {
@@ -190,6 +201,7 @@ int main(void)
 	      }
 	      break;
 
+	  // After receiving the ACK from the pi, get ready to receive data normally
 	  case STATE_NORMAL_OP:
 	  {
 		  uint8_t res;
