@@ -75,6 +75,8 @@ batteryVoltage = [10]
 frameCounter = [11]
 timeSinceStartup = [12]
 
+startup = False
+
 statesInText = ["Standby", 'Launching', "Apogee"]
 
 bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [7] + [13] + [14]
@@ -90,7 +92,10 @@ def parse_message(msg):
 # --------------------------
 # Setup Serial
 # --------------------------
+input("Press enter to send START command to STM: ")
 ser = serial.Serial(COM_PORT, BAUD_RATE, timeout=TIMEOUT)
+ser.write(b"START")
+print("Command sent. Waiting for LoRa handshake...")
 
 # --------------------------
 # Setup Matplotlib for numbers
@@ -215,21 +220,21 @@ if SAVE_DATA == True:
 # Main loop
 # --------------------------
 try:
-    # while startup == False:
-        # if ser.in_waiting > 0:
-        #     # Use readline() because STM32 printf() ends with \r\n
-        #     line = ser.readline().decode('utf-8', errors='ignore').strip()
+    while startup == False:
+        if ser.in_waiting > 0:
+            # Use readline() because STM32 printf() ends with \r\n
+            line = ser.readline().decode('utf-8', errors='ignore').strip()
             
-        #     if line:
-        #         print(f"[STM32]: {line}")
+            if line:
+                print(f"[STM32]: {line}")
                 
-        #     # This string must match what you printf() in your C code 
-        #     # after the LoRa ACK is received.
-        #     if "Starting normal routine" in line:
-        #         print("Handshake confirmed! Opening plots...")
-        #         startup = True
-        #         time.sleep(1) # Small buffer to let UART clear
-        #         ser.reset_input_buffer() # Clear the "ACK" text so it doesn't mess up binary parsing
+            # This string must match what you printf() in your C code 
+            # after the LoRa ACK is received.
+            if "Starting normal routine" in line:
+                print("Handshake confirmed! Opening plots...")
+                startup = True
+                time.sleep(1) # Small buffer to let UART clear
+                ser.reset_input_buffer() # Clear the "ACK" text so it doesn't mess up binary parsing
             
     while plt.fignum_exists(fig.number):
         
