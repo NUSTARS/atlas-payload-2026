@@ -4,11 +4,7 @@
 #include <bat-sensor.h>
 #include <controls.h>
 #include <pi-communication.h>
-<<<<<<< HEAD
-// #include <KalmanFilter.h>
-=======
 #include <KalmanFilter.h>
->>>>>>> 8e3101f3382702e183994b8e6453d997fa26f2b8
 #include <imu.h>
 
 // DEFINES =========================================================================
@@ -39,21 +35,18 @@ flight_phase current_phase = flight_phase::RUN_CONTROLS;
 
 AltimeterData flight_data;
 
-// KalmanFilter kf;
+KalmanFilter kf;
 
 IMUData imu_data;
 
 BatteryData battery_data;
 
-<<<<<<< HEAD
-=======
 IntervalTimer control_timer;
 
 // INTERRUPTS ======================================================================
 
 // control interrupt has been deleted and that stuff has moved to main loop
 
->>>>>>> 8e3101f3382702e183994b8e6453d997fa26f2b8
 // SETUP ===========================================================================
 void setup() {
   Serial.begin(115200);
@@ -88,20 +81,12 @@ void setup() {
   Serial.println("set up serial IMU on Serial2!");
 
   // Initialize Kalman Filter
-<<<<<<< HEAD
-  // float dt0 = CONTROL_PERIOD_us * 1e-6f; // seconds
-  // float roll_heading0 = 0.0;
-  // float roll_velocity0 = 0.0;
-  // Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
-  // kf.init(dt0, z0);
-=======
   float dt0 = 1/100.0f; // seconds
   // // FIXME read imu and store to
   float roll_heading0 = 0.0;
   float roll_velocity0 = 0.0;
   Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
   kf.init(dt0, z0);
->>>>>>> 8e3101f3382702e183994b8e6453d997fa26f2b8
 
   // call buzzer
   pinMode(BUZZER_PIN, OUTPUT);
@@ -110,6 +95,8 @@ void setup() {
   delay(500);
   digitalWrite(BUZZER_PIN, LOW);
 }
+
+
 int counter = 0;
 // LOOP ============================================================================
 void loop() {
@@ -200,18 +187,11 @@ void loop() {
 
   // readAltimeter(flight_data);
   // Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
-<<<<<<< HEAD
-  // // Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
-  // Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
-  // // Serial.println();
-=======
   // Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
   // Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
   // Serial.println();
 
-
   // Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
->>>>>>> 8e3101f3382702e183994b8e6453d997fa26f2b8
 
   // static unsigned long prevSend = 0;
   // if (millis() - prevSend >= 10) { // 100 Hz packet publish
@@ -231,13 +211,9 @@ void loop() {
   //   prevSend = millis();
   // }
 
-<<<<<<< HEAD
-  // Serial.print("Current Phase: "); Serial.println(current_phase);
-=======
   // // Serial.print("Current Phase: "); Serial.println(current_phase);
 
   // setVel();
->>>>>>> 8e3101f3382702e183994b8e6453d997fa26f2b8
 
   // float altitude_agl_m = flight_data.altitude_m - base_altitude_m;
   // switch (current_phase) {
