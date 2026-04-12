@@ -117,7 +117,11 @@ int main(void)
   uint8_t res = lora_init(&lora, &hspi1, GPIOB, GPIO_PIN_6, LORA_BASE_FREQUENCY_US);
 
   if (res != LORA_OK) {
-
+//      printf("LoRa init failed\r\n");
+	  lora_set_crc(&lora, 1);
+  } else {
+      uint8_t ver = lora_version(&lora);
+//      printf("LoRa Version: 0x%02X (%u)\r\n", ver, ver);
   }
   // Put LoRa modem into continuous receive mode
   lora_mode_receive_continuous(&lora);
@@ -142,6 +146,7 @@ int main(void)
 		  break;
 
 	  case STATE_HANDSHAKE_TX:
+<<<<<<< HEAD
 		   Try to send "START" packet to Pi
 		  if (lora_send_packet_blocking(&lora, (uint8_t*)"START", 5, 2000) == LORA_OK) {
 			  printf("Handshake sent! Waiting for ACK...\r\n");
@@ -165,6 +170,42 @@ int main(void)
 	  case STATE_NORMAL_OP:
 	  {
 		  lora_mode_receive_continuous(&lora);
+=======
+	      if (lora_send_packet_blocking(&lora, (uint8_t*)"START", 5, 2000) == LORA_OK) {
+	          printf("Handshake sent! Waiting for ACK...\r\n");
+
+	          lora_mode_standby(&lora);
+	          HAL_Delay(10);
+	          lora_clear_interrupt_rx_all(&lora);
+	          lora_mode_receive_continuous(&lora);
+
+	          uint8_t ack_buffer[10] = {0}; // Initialize with zeros to help with printing
+	          uint8_t lora_res_code;
+	          uint8_t ack_len = lora_receive_packet_blocking(&lora, ack_buffer, sizeof(ack_buffer), 5000, &lora_res_code);
+
+	          if (lora_res_code == LORA_OK && ack_len >= 3) {
+	              if (memcmp(ack_buffer, "ACK", 3) == 0) {
+	                  printf("ACK received! Starting normal routine.\r\n");
+	                  current_state = STATE_NORMAL_OP;
+	              } else {
+	                  printf("Received unknown packet: %.*s\r\n", ack_len, (char*)ack_buffer);
+	                  printf("Unknown: ");
+	                  for(int i=0; i<ack_len; i++) {
+	                      printf("%02X ", ack_buffer[i]);
+	                  }
+	                  printf("\r\n");
+	              }
+	          } else {
+	              printf("Handshake timeout or error code: %d\r\n", lora_res_code);
+	              // Optional: for debugging, proceed anyway
+	              current_state = STATE_NORMAL_OP;
+	          }
+	      }
+	      break;
+
+	  case STATE_NORMAL_OP:
+	  {
+>>>>>>> 00b7d44 (working code for stm and rpi communication both ways)
 		  uint8_t res;
 
 		  uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);

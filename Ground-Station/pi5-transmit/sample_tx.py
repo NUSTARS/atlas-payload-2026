@@ -86,8 +86,21 @@ if __name__ == "__main__":
     # 4/5 coding rate (4/4+cr), no explicit header, spreading factor of 7, enabling CRC (adding a checksum),
     # sync word as 0x12, and outputting at max power
     loralib.configure(fq, bw, cr, implicitHeader, sf, checkSum, syncWord, power, preamble)
+    loralib.setContMode(False)
     packet = Packet(*dummy_frames[0])
+<<<<<<< HEAD
     while 1:
+=======
+    print("waiting for start!")
+    while startup == False:
+                command = loralib.receive()
+                if command == "START":
+                    startup = True
+                    time.sleep(1)
+                    loralib.transmit(b"ACK")
+                    time.sleep(1)
+    while 1:  
+>>>>>>> 00b7d44 (working code for stm and rpi communication both ways)
         for frame in dummy_frames:
             # idk if .update is the best way to do it 
             packet.update(frame)

@@ -6,7 +6,6 @@
 #                                           #
 #############################################
 
-
 ################## Imports ##################
 import spidev
 import gpiod
@@ -17,10 +16,11 @@ from gpiod.line import Direction, Value
 ################# Constants #################
 # SX1276 - Raspberry connections
 DIO0                      = 4
-RST                       = 17
-TX                       = 27
+RST                       = 27
+TX                        = 22
+RX                        = 23
 
-BUS                       = 0
+BUS                       = 1
 DEVICE                    = 1
 
 # Registers
@@ -92,50 +92,78 @@ MAX_FRAME_LEN             = 255
 
 spi = spidev.SpiDev()
 
-def input_gpio(gpio):
-    """
-    Read value from GPIO line.
-    Returns 1=True/HIGH, 0=False/LOW
-    """
-    with gpiod.request_lines(
+# Global variable for the request
+_gpio_request = None
+
+def init_gpios():
+    global _gpio_request
+    _gpio_request = gpiod.request_lines(
         "/dev/gpiochip0",
         consumer="loralibPi5",
         config={
-            DIO0: gpiod.LineSettings(
-                direction=Direction.INPUT, output_value=Value.INACTIVE
-            ),
-            RST: gpiod.LineSettings(
-                direction=Direction.OUTPUT, output_value=Value.INACTIVE
-            ),
-            TX: gpiod.LineSettings(
-                direction=Direction.OUTPUT, output_value=Value.INACTIVE
-            )
+            DIO0: gpiod.LineSettings(direction=Direction.INPUT),
+            RST: gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.ACTIVE),
+            TX: gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE),
+            RX: gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE),
         },
-    ) as request:
-        return request.get_value(gpio)
-
+    )
 
 def output_gpio(gpio, value):
-    """
-    Set value of GPIO line.
-    value: 0/1 or False/True
-    """
-    with gpiod.request_lines(
-        "/dev/gpiochip0",
-        consumer="loralibPi5",
-        config={
-            DIO0: gpiod.LineSettings(
-                direction=Direction.INPUT, output_value=Value.INACTIVE
-            ),
-            RST: gpiod.LineSettings(
-                direction=Direction.OUTPUT, output_value=Value.INACTIVE
-            ),
-            TX: gpiod.LineSettings(
-                direction=Direction.OUTPUT, output_value=Value.INACTIVE
-            )
-        },
-    ) as request:
-        request.set_value(gpio, Value.ACTIVE if value else Value.INACTIVE)
+    _gpio_request.set_value(gpio, Value.ACTIVE if value else Value.INACTIVE)
+
+def input_gpio(gpio):
+    return 1 if _gpio_request.get_value(gpio) == Value.ACTIVE else 0
+
+# def input_gpio(gpio):
+#     """
+#     Read value from GPIO line.
+#     Returns 1=True/HIGH, 0=False/LOW
+#     """
+#     with gpiod.request_lines(
+#         "/dev/gpiochip0",
+#         consumer="loralibPi5",
+#         config={
+#             DIO0: gpiod.LineSettings(
+#                 direction=Direction.INPUT, output_value=Value.INACTIVE
+#             ),
+#             RST: gpiod.LineSettings(
+#                 direction=Direction.OUTPUT, output_value=Value.INACTIVE
+#             ),
+#             TX: gpiod.LineSettings(
+#                 direction=Direction.OUTPUT, output_value=Value.INACTIVE
+#             ),
+#             RX: gpiod.LineSettings(
+#                 direction=Direction.OUTPUT, output_value=Value.INACTIVE
+#             )
+#         },
+#     ) as request:
+#         return request.get_value(gpio)
+
+
+# def output_gpio(gpio, value):
+#     """
+#     Set value of GPIO line.
+#     value: 0/1 or False/True
+#     """
+#     with gpiod.request_lines(
+#         "/dev/gpiochip0",
+#         consumer="loralibPi5",
+#         config={
+#             DIO0: gpiod.LineSettings(
+#                 direction=Direction.INPUT, output_value=Value.INACTIVE
+#             ),
+#             RST: gpiod.LineSettings(
+#                 direction=Direction.OUTPUT, output_value=Value.INACTIVE
+#             ),
+#             TX: gpiod.LineSettings(
+#                 direction=Direction.OUTPUT, output_value=Value.INACTIVE
+#             ),
+#             RX: gpiod.LineSettings(
+#                 direction=Direction.OUTPUT, output_value=Value.INACTIVE
+#             )
+#         },
+#     ) as request:
+#         request.set_value(gpio, Value.ACTIVE if value else Value.INACTIVE)
 
 
 def writeReg(addr, value):
@@ -188,6 +216,8 @@ def initialize():
     spi.open(bus, device)
     spi.max_speed_hz = 500000
     spi.mode = 0b00
+
+    init_gpios()
 
     sx1276_reset()
     # Check chipset version
@@ -418,6 +448,8 @@ def configPower(output_power):
     writeReg(REG_PA_DAC, 0x84)
 
 def transmit(frame):
+    output_gpio(TX, 1)
+    output_gpio(RX, 0)
     # Enter standby mode (required for FIFO loading))
     opmode(OPMODE_STANDBY)
     # Set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP
@@ -475,6 +507,8 @@ def packet_received():
 
 def receive():
     opmode(OPMODE_RX)
+    output_gpio(TX, 0)
+    output_gpio(RX, 1)
     SNR = 0
     rssicorr = 157
     while(1):
@@ -497,10 +531,14 @@ def receive():
                 print("Payload length:", receivedbytes)
                 print("Message: ")
                 print(rx_message)
+<<<<<<< HEAD
         time.sleep(1)
+=======
+                return rx_message
+>>>>>>> 00b7d44 (working code for stm and rpi communication both ways)
 
 def scan_spi_for_sx1276(
-    buses=(0,),
+    buses=(1,),
     devices=(0, 1),
     speed=SPEED
 ):
@@ -553,14 +591,17 @@ def configure(fq, bw, cr, header, sf, CRC, sync, power, preamble):
         setSyncWord(sync)
         configPower(power)
         setPreambleLength(preamble)
+        # setPayloadLength(payload)
 
 if __name__ == "__main__":
-    sx1276_reset()
-    devices = scan_spi_for_sx1276()
+    print('hi!')
 
-    if devices:
-        print("Found SX1276 on:")
-        for bus, dev in devices:
-            print(f"   - spidev{bus}.{dev}")
-    else:
-        print("No SX1276 devices detected on SPI")
+    # sx1276_reset()
+    # devices = scan_spi_for_sx1276()
+
+    # if devices:
+    #     print("Found SX1276 on:")
+    #     for bus, dev in devices:
+    #         print(f"   - spidev{bus}.{dev}")
+    # else:
+    #     print("No SX1276 devices detected on SPI")
