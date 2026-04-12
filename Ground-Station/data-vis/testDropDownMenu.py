@@ -19,7 +19,7 @@ from tkinter import ttk
 # BATTERY VOLTAGE (number) 1 byte
 # FRAME COUNTER (number) 1 byte
 # TIME SINCE STARTUP (number) 4 bytes 
-# 2+6+8+6+1+1+1+4 = 35 bytes total
+# 2+6+16+6+1+1+1+4 = 37 bytes total
 
 # TAKE DIFFERENCE BETWEEN STARTING LAT AND LONG BETWEEN CURRENT
 # VERTICAL VELOCITY
@@ -77,6 +77,7 @@ timeSinceStartup = [12]
 
 startup = False
 
+# change these to whatever states we actually choose
 statesInText = ["Standby", 'Launching', "Apogee"]
 
 bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [7] + [13] + [14]
@@ -92,7 +93,9 @@ def parse_message(msg):
 # --------------------------
 # Setup Serial
 # --------------------------
-input("Press enter to send START command to STM: ")
+
+# To startup payload to make it start sending data, you press enter
+input("Press ENTER to send START command to STM: ")
 ser = serial.Serial(COM_PORT, BAUD_RATE, timeout=TIMEOUT)
 ser.write(b"START")
 print("Command sent. Waiting for LoRa handshake...")
@@ -228,8 +231,7 @@ try:
             if line:
                 print(f"[STM32]: {line}")
                 
-            # This string must match what you printf() in your C code 
-            # after the LoRa ACK is received.
+            # Checks that STM received the correct ACK
             if "Starting normal routine" in line:
                 print("Handshake confirmed! Opening plots...")
                 startup = True
