@@ -6,6 +6,7 @@
 #include <pi-communication.h>
 #include <KalmanFilter.h>
 #include <imu.h>
+#include <tuning.h>
 
 // DEFINES =========================================================================
 enum flight_phase {
@@ -45,7 +46,49 @@ IntervalTimer control_timer;
 
 // INTERRUPTS ======================================================================
 
-// control interrupt has been deleted and that stuff has moved to main loop
+// 1600 Hz control ISR with reentrancy guard
+static volatile bool control_running = false;
+
+static void controlISR() {
+    // Skip this tick if control is still running from previous tick
+    if (control_running) return;
+    control_running = true;
+
+    // Drain IMU serial buffer at high frequency
+    serviceIMU();
+
+    // Run control if a new IMU frame has arrived
+    if (clearIMUFrameReady() && current_phase == RUN_CONTROLS) {
+        if (getLatestIMUData(imu_data)) {
+            double time_s = imu_data.timeUTC * 1e-3;
+
+            spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
+            
+            // debug printout of time and ypr
+            // Serial.print("Time (s): "); Serial.println(time_s, 3);
+            // Serial.print("YPR (deg): "); Serial.print(imu_data.ypr[0], 2); Serial.print(", "); Serial.print(imu_data.ypr[1], 2); Serial.print(", "); Serial.println(imu_data.ypr[2], 2);
+            
+            // Kalman filter
+            float roll_heading = imu_data.ypr[0];
+            float roll_velocity = imu_data.angularRate[0];
+            Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity);
+            kf.predict();
+            kf.update(z);
+            Eigen::Vector3f x_hat = kf.state();
+
+            // PID + feedforward control
+            float pid_result = PIDControl(roll_heading, roll_velocity);
+            float ff_result = feedForwardControl(x_hat[2]);
+            float motor_cmd = pid_result + ff_result;
+            motorControl(motor_cmd);
+
+            // Tuning telemetry
+            tuningSendTelemetry(time_s, roll_heading, roll_velocity, x_hat[2], pid_result, ff_result, motor_cmd);
+        }
+    }
+
+    control_running = false;
+}
 
 // SETUP ===========================================================================
 void setup() {
@@ -90,82 +133,27 @@ void setup() {
   Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
   kf.init(dt0, z0);
 
+  // Initialize 1600 Hz control ISR with highest priority
+  control_timer.begin(controlISR, 625);  // 625 microseconds = 1600 Hz
+  // Set to priority 0 (highest) to preempt all other interrupts
+  control_timer.priority(0);
+
 
   // call buzzer
   pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, HIGH);
+  digitalWrite(BUZZER_PIN, HIGH);  
 
   delay(500);
   digitalWrite(BUZZER_PIN, LOW);
+
+  if (current_phase == TUNING) {  
+    tuningSetup();
+  }
 }
-int counter = 0;
+
 // LOOP ============================================================================
 void loop() {
-  // Service the IMU serial RX buffer and update the latest packet snapshot.
-  serviceIMU();
-
-  // Run control immediately when a new IMU frame is published.
-  static uint32_t last_seq = 0;
-  uint32_t now_seq = getIMUSequence();
-  if (now_seq != last_seq) {
-    last_seq = now_seq;
-    if (getLatestIMUData(imu_data) && current_phase == RUN_CONTROLS) {
-      // debug printout of time and YPR of newest IMU packet
-      double time_s = imu_data.timeUTC * 1e-3;
-      Serial.print("Time: "); Serial.println(time_s, 3);
-      Serial.print("YPR: ");
-      Serial.print(imu_data.ypr[0], 4); Serial.print(", ");
-      Serial.print(imu_data.ypr[1], 4); Serial.print(", ");
-      Serial.println(imu_data.ypr[2], 4);
-
-      
-      spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
-      
-      // kalman filter
-      float roll_heading = imu_data.ypr[2]; 
-      float roll_velocity = imu_data.angularRate[2];
-      Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
-      // FIXME update timestep
-      kf.predict();
-      kf.update(z);
-      Eigen::Vector3f x_hat = kf.state();
-      // Serial.print("Meas:/t");
-      // Serial.print(roll_heading,6); Serial.println(roll_velocity,6);
-      // Serial.print("xhat:/t");
-      // Serial.print(x_hat(0),6); Serial.print(x_hat(1),6); Serial.println(x_hat(2),6);
-      
-
-
-      
-      // only continue if we are running controls
-      if (current_phase != RUN_CONTROLS) return;
-
-      // get pid value
-      float pid_result = PIDControl(x_hat[0], x_hat[1]);
-      // get feed-forward value
-      float ff_result = feedForwardControl(x_hat[2]);
-      // command motor
-      motorControl(pid_result + ff_result);
-    }
-  }
-
-  // Debug output: very sparse to avoid blocking the 50Hz control path
-
-
-
-  // readBatSensor(battery_data);
-  // Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
-  // Serial.print("Current (mA): ");Serial.println(battery_data.current_ma);
-  // Serial.print("Power (mW): ");Serial.println(battery_data.power_mw);
-  // Serial.print("Load Voltage (V): ");Serial.println(battery_data.load_voltage_V);
-  // Serial.println();
-
-  // readAltimeter(flight_data);
-  // Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
-  // Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
-  // Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
-  // Serial.println();
-
+  tuningServiceUsbCommands();
 
   // Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
 

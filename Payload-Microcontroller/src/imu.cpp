@@ -27,6 +27,7 @@ static IMUData imu_staging;
 static IMUData imu_published;
 static volatile bool imu_valid = false;
 static volatile uint32_t imu_seq = 0;
+static volatile bool imu_frame_ready = false;
 
 // checksum
 static uint16_t crc16_step(uint16_t crc, uint8_t byte) {
@@ -110,6 +111,7 @@ static void parseFrame(const uint8_t *frame) {
     imu_published = imu_staging;
     imu_valid = true;
     imu_seq++;
+    imu_frame_ready = true;
     interrupts();
 }
 
@@ -199,4 +201,15 @@ bool getLatestIMUData(IMUData &out) {
 
 uint32_t getIMUSequence() {
     return imu_seq;
+}
+
+// clearIMUFrameReady() — safe to call from ISR.
+// Atomically reads and clears the imu_frame_ready flag.
+// Returns true if a frame has arrived since last call, false otherwise.
+bool clearIMUFrameReady() {
+    noInterrupts();
+    bool ready = imu_frame_ready;
+    imu_frame_ready = false;
+    interrupts();
+    return ready;
 }

@@ -6,16 +6,34 @@
 
 // Tuning values
 // should all be positive
-const float P = 10.0;
-const float I = 0.0;
-const float D = 0.0;
-const float ISaturate = 10.0;
+static float P = 0.0f;
+static float I = 0.0f;
+static float D = 10.0f;
+static const float ISaturate = 10.0f;
 
-const float FFGain = 0.0;
+static float FFGain = 0.0f;
 
 unsigned long prevT = 0;
 float prevError = 0;
 float iTerm = 0;
+
+void setPGain(float p) { P = p; }
+
+void setIGain(float i) { I = i; }
+
+void setDGain(float d) { D = d; }
+
+void setFFGain(float ff) { FFGain = ff; }
+
+float getPGain() { return P; }
+
+float getIGain() { return I; }
+
+float getDGain() { return D; }
+
+float getFFGain() { return FFGain; }
+
+void resetIntegralTerm() { iTerm = 0.0f; }
 
 
 // PIDControl: float -> float
@@ -33,7 +51,7 @@ float PIDControl(float heading, float angularVel) {
     // this will likely need filtering
 
     //float dError = error - prevError;
-    
+
     iTerm += I * heading;
     iTerm = max(min(iTerm, ISaturate), -ISaturate);
 
@@ -41,10 +59,7 @@ float PIDControl(float heading, float angularVel) {
 }
 
 float feedForwardControl(float angularAcc) {
-    
-    float gain = 0.0;
-
-    return gain * angularAcc;
+  return FFGain * angularAcc;
 }
 
 // converts torques into analog pwm signals

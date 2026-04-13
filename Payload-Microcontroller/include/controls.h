@@ -21,6 +21,17 @@ float feedForwardControl(float angularAcc);
 // to command the appropriate torque response
 void motorControl(float torque);
 
+// Runtime tuning hooks for live updates over USB serial.
+void setPGain(float p);
+void setIGain(float i);
+void setDGain(float d);
+void setFFGain(float ff);
+float getPGain();
+float getIGain();
+float getDGain();
+float getFFGain();
+void resetIntegralTerm();
+
 
 // TEST UART 
 void sendCmd(const char* cmd);
