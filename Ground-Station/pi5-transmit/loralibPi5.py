@@ -17,8 +17,8 @@ from gpiod.line import Direction, Value
 # SX1276 - Raspberry connections
 DIO0                      = 4
 RST                       = 27
-TX                        = 22
-RX                        = 23
+TX                        = 15
+RX                        = 14
 
 BUS                       = 1
 DEVICE                    = 1
@@ -183,11 +183,6 @@ def writeBuf(addr, value):
     # Input: string to send
     # Support for arrays or lists of numbers is not guaranteed
     # address MSB must be one to write
-    # data = [addr|0x80]
-    # for x in value:
-    #     data.append(ord(x))
-    # spibuf = bytes(data)
-    # spi.xfer(spibuf,SPEED,0,8)
     
     # value must be bytes or bytearray
     data = bytes([addr | 0x80]) + value
@@ -587,17 +582,16 @@ def configure(fq, bw, cr, header, sf, CRC, sync, power, preamble):
         setSyncWord(sync)
         configPower(power)
         setPreambleLength(preamble)
-        # setPayloadLength(payload)
 
 if __name__ == "__main__":
     print('hi!')
+    init_gpios()
+    sx1276_reset()
+    devices = scan_spi_for_sx1276()
 
-    # sx1276_reset()
-    # devices = scan_spi_for_sx1276()
-
-    # if devices:
-    #     print("Found SX1276 on:")
-    #     for bus, dev in devices:
-    #         print(f"   - spidev{bus}.{dev}")
-    # else:
-    #     print("No SX1276 devices detected on SPI")
+    if devices:
+        print("Found SX1276 on:")
+        for bus, dev in devices:
+            print(f"   - spidev{bus}.{dev}")
+    else:
+        print("No SX1276 devices detected on SPI")

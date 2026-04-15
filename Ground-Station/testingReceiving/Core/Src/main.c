@@ -136,8 +136,9 @@ int main(void)
   } SystemState_t;
 
   // start at beginning
-  SystemState_t current_state = STATE_WAIT_FOR_UART;
+  SystemState_t current_state = STATE_NORMAL_OP;
   char start_cmd[6];
+
 
 
 
@@ -205,6 +206,7 @@ int main(void)
 	  case STATE_NORMAL_OP:
 	  {
 		  uint8_t res;
+		  lora_mode_receive_continuous(&lora);
 
 		  uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
 		  // added for rylr

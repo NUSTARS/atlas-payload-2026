@@ -13,6 +13,8 @@ syncWord = 0x12
 power = 17 # max power
 preamble = 8 # matching stm
 
+startup = False
+
 # ALTITUDE (plotted) 2 bytes
 # ORIENTATION IN ALL 3 AXES (numbers & plot) 2*3=6 bytes
 # LONGITUDE AND LATITUDE (number) 2*8=16 bytes
@@ -49,16 +51,8 @@ class Packet:
     time_since_startup: float # float 2 bytes
     frame_counter: int = 0 # uint8 1 byte
 
-    # ALTITUDE (plotted) 2 bytes
-    # ORIENTATION IN ALL 3 AXES (numbers & plot) 2*3=6 bytes
-    # LONGITUDE AND LATITUDE (number) 2*8=16 bytes
-    # VELOCITY IN ALL 3 AXES (plotted) 6 bytes
-    # STATE (number) 1 byte
-    # BATTERY VOLTAGE (number) 1 byte
-    # FRAME COUNTER (number) 1 byte
-    # TIME SINCE STARTUP (number) 4 bytes 
-    # 2+6+16+6+1+1+1+4 = 37 bytes total
-        
+    # 37 bytes total, I thought it was 35 but apparently it isn't, I cba to find out why rn
+    
     # Need to make sure orientation is just degrees from -360 to 360,
     # velocity is from -32768 to 32767, 
     # altitude is from 0 to 65535, 
@@ -97,16 +91,13 @@ if __name__ == "__main__":
     loralib.setContMode(False)
     packet = Packet(*dummy_frames[0])
     print("waiting for start!")
-    # This while loop is just for detecting if it gets the start command from the STM
-    while startup == False:
-                command = loralib.receive()
-                if command == "START":
-                    startup = True
-                    time.sleep(1)
-                    loralib.transmit(b"ACK")
-                    time.sleep(1)
-
-    # Sends data                     
+    # while startup == False:
+    #             command = loralib.receive()
+    #             if command == "START":
+    #                 startup = True
+    #                 time.sleep(1)
+    #                 loralib.transmit(b"ACK")
+    #                 time.sleep(1)
     while 1:  
         for frame in dummy_frames:
             # idk if .update is the best way to do it 
