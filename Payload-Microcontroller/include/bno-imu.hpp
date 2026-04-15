@@ -4,6 +4,9 @@
 
 static const uint32_t REPORT_US = 5000;   // 200 Hz
 
+static const uint32_t CONTROL_PERIOD_us = 500000; // 500 ms
+
+
 struct IMUData {
   double timeUTC;
   float ypr[3];
