@@ -5,7 +5,7 @@
 #include <controls.h>
 #include <pi-communication.h>
 #include <KalmanFilter.h>
-#include <imu.h>
+#include <bno-imu.hpp>
 
 // DEFINES =========================================================================
 enum flight_phase {
@@ -43,9 +43,75 @@ BatteryData battery_data;
 
 IntervalTimer control_timer;
 
+long long counter = 0;
+
 // INTERRUPTS ======================================================================
 
 // control interrupt has been deleted and that stuff has moved to main loop
+
+void controlInterrupt() {
+
+  if (readIMU(imu_data)) {
+    // debug printout of time and YPR of newest IMU packet
+    double time_s = imu_data.timeUTC * 1e-3;
+    Serial.print("Time: "); Serial.println(time_s, 3);
+    Serial.print("YPR: ");
+    Serial.print(imu_data.ypr[0], 4); Serial.print(", ");
+    Serial.print(imu_data.ypr[1], 4); Serial.print(", ");
+    Serial.println(imu_data.ypr[2], 4);
+
+    spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
+    
+    // kalman filter
+    float roll_heading = imu_data.ypr[2]; 
+    float roll_velocity = imu_data.angularRate[2];
+    Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
+
+    uint32_t ts_us = micros();
+    kf.predict();
+    Eigen::Vector3f predx = kf.state();
+    Serial.print("predx:\t");
+    Serial.print(predx(0), 6); Serial.print("\t");
+    Serial.println(predx(1), 6);
+    kf.update(z);
+    uint32_t tf_us = micros();
+
+    Eigen::Vector3f x_hat = kf.state();
+    Serial.print("updx:\t");
+    Serial.print(x_hat(0), 6); Serial.print("\t");
+    Serial.print(x_hat(1), 6); Serial.print("\t");
+    Serial.println(x_hat(2), 6);
+
+    auto y = kf.innovation();
+    Serial.print("y:  \t");
+    Serial.print(y(0), 6); Serial.print("\t");
+    Serial.println(y(1), 6);
+    Serial.print("Kalman Time (us): "); Serial.println(tf_us - ts_us); 
+    Serial.println("--");
+
+    // FIXME update timestep
+    // kf.predict();
+    // kf.update(z);
+    // Eigen::Vector3f x_hat = kf.state();
+    // Serial.print("Meas:\t");
+    // Serial.print(roll_heading,6); Serial.print("\t"); Serial.println(roll_velocity,6);
+    // Serial.print("xhat:\t");
+    // Serial.print(x_hat(0),6); Serial.print("\t"); Serial.print(x_hat(1),6); Serial.print("\t"); Serial.println(x_hat(2),6);
+    
+
+
+    
+    // only continue if we are running controls
+    if (current_phase != RUN_CONTROLS) return;
+
+    // get pid value
+    float pid_result = PIDControl(x_hat[0], x_hat[1]);
+    // get feed-forward value
+    float ff_result = feedForwardControl(x_hat[2]);
+    // command motor
+    motorControl(pid_result + ff_result);
+  }
+}
 
 // SETUP ===========================================================================
 void setup() {
@@ -94,85 +160,17 @@ void setup() {
 
   delay(500);
   digitalWrite(BUZZER_PIN, LOW);
+
+  control_timer.priority(0);
+  control_timer.begin(controlInterrupt, CONTROL_PERIOD_us);
 }
 
-
-int counter = 0;
 // LOOP ============================================================================
 void loop() {
-  // Service the IMU serial RX buffer and update the latest packet snapshot.
-  serviceIMU();
 
-  // Run control immediately when a new IMU frame is published.
-  static uint32_t last_seq = 0;
-  uint32_t now_seq = getIMUSequence();
-  // Serial.print('Here');
-
-  if (now_seq != last_seq) {
-    last_seq = now_seq;
-    if (getLatestIMUData(imu_data) && current_phase == RUN_CONTROLS) {
-      // debug printout of time and YPR of newest IMU packet
-      double time_s = imu_data.timeUTC * 1e-3;
-      Serial.print("Time: "); Serial.println(time_s, 3);
-      Serial.print("YPR: ");
-      Serial.print(imu_data.ypr[0], 4); Serial.print(", ");
-      Serial.print(imu_data.ypr[1], 4); Serial.print(", ");
-      Serial.println(imu_data.ypr[2], 4);
-
-      
-      spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
-      
-      // kalman filter
-      float roll_heading = imu_data.ypr[2]; 
-      float roll_velocity = imu_data.angularRate[2];
-      Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity); // unit conversion inside
-
-      uint32_t ts_us = micros();
-      kf.predict();
-      Eigen::Vector3f predx = kf.state();
-      Serial.print("predx:\t");
-      Serial.print(predx(0), 6); Serial.print("\t");
-      Serial.println(predx(1), 6);
-      kf.update(z);
-      uint32_t tf_us = micros();
-
-      Eigen::Vector3f x_hat = kf.state();
-      Serial.print("updx:\t");
-      Serial.print(x_hat(0), 6); Serial.print("\t");
-      Serial.print(x_hat(1), 6); Serial.print("\t");
-      Serial.println(x_hat(2), 6);
-
-      auto y = kf.innovation();
-      Serial.print("y:  \t");
-      Serial.print(y(0), 6); Serial.print("\t");
-      Serial.println(y(1), 6);
-      Serial.print("Kalman Time (us): "); Serial.println(tf_us - ts_us); 
-      Serial.println("--");
+  // Serial.println("Here");
 
 
-      // FIXME update timestep
-      // kf.predict();
-      // kf.update(z);
-      // Eigen::Vector3f x_hat = kf.state();
-      // Serial.print("Meas:\t");
-      // Serial.print(roll_heading,6); Serial.print("\t"); Serial.println(roll_velocity,6);
-      // Serial.print("xhat:\t");
-      // Serial.print(x_hat(0),6); Serial.print("\t"); Serial.print(x_hat(1),6); Serial.print("\t"); Serial.println(x_hat(2),6);
-      
-
-
-      
-      // only continue if we are running controls
-      if (current_phase != RUN_CONTROLS) return;
-
-      // get pid value
-      float pid_result = PIDControl(x_hat[0], x_hat[1]);
-      // get feed-forward value
-      float ff_result = feedForwardControl(x_hat[2]);
-      // command motor
-      motorControl(pid_result + ff_result);
-    }
-  }
 
   // Debug output: very sparse to avoid blocking the 50Hz control path
 
