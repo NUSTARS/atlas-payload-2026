@@ -5,8 +5,11 @@
 #include <stdlib.h>
 
 #define TELEMETRY_DECIMATION 2
+#define HEARTBEAT_TIMEOUT_MS 250
 
 static String usb_rx_line;
+static volatile uint32_t last_hb_ms = 0;
+static volatile bool heartbeat_seen = false;
 
 static void printGainSnapshot() {
   Serial.print("GAINS,");
@@ -17,7 +20,7 @@ static void printGainSnapshot() {
 }
 
 static void printHelp() {
-  Serial.println("CMDS,SET P <v>|SET I <v>|SET D <v>|SET FF <v>|GET GAINS|RESET I");
+  Serial.println("CMDS,HB|SET P <v>|SET I <v>|SET D <v>|SET FF <v>|GET GAINS|RESET I");
 }
 
 static void processUsbCommand(String line) {
@@ -31,6 +34,12 @@ static void processUsbCommand(String line) {
 
   if (line.equalsIgnoreCase("GET GAINS") || line.equalsIgnoreCase("GAINS")) {
     printGainSnapshot();
+    return;
+  }
+
+  if (line.equalsIgnoreCase("HB")) {
+    last_hb_ms = millis();
+    heartbeat_seen = true;
     return;
   }
 
@@ -109,6 +118,12 @@ void tuningServiceUsbCommands() {
       usb_rx_line += c;
     }
   }
+}
+
+bool tuningHandshakeAlive() {
+  if (!heartbeat_seen) return false;
+  uint32_t now = millis();
+  return (uint32_t)(now - last_hb_ms) <= HEARTBEAT_TIMEOUT_MS;
 }
 
 void tuningSendTelemetry(

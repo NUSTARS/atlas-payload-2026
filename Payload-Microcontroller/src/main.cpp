@@ -66,7 +66,7 @@ static void controlISR() {
             
             // debug printout of time and ypr
             // Serial.print("Time (s): "); Serial.println(time_s, 3);
-            // Serial.print("YPR (deg): "); Serial.print(imu_data.ypr[0], 2); Serial.print(", "); Serial.print(imu_data.ypr[1], 2); Serial.print(", "); Serial.println(imu_data.ypr[2], 2);
+            // Serial.print( "YPR (deg): "); Serial.print(imu_data.ypr[0], 2); Serial.print(", "); Serial.print(imu_data.ypr[1], 2); Serial.print(", "); Serial.println(imu_data.ypr[2], 2);
             
             // Kalman filter
             float roll_heading = imu_data.ypr[0];
@@ -80,6 +80,12 @@ static void controlISR() {
             float pid_result = PIDControl(roll_heading, roll_velocity);
             float ff_result = feedForwardControl(x_hat[2]);
             float motor_cmd = pid_result + ff_result;
+
+            if (!tuningHandshakeAlive()) {
+              // Deadman watchdog: host heartbeat missing, force safe output.
+              motor_cmd = 0.0f;
+            }
+
             motorControl(motor_cmd);
 
             // Tuning telemetry

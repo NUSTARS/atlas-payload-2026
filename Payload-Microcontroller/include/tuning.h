@@ -8,6 +8,10 @@ void tuningSetup();
 // Processes inbound tuning commands from the USB serial interface.
 void tuningServiceUsbCommands();
 
+// Returns true when heartbeat packets are arriving within timeout.
+// Safe to call from the control ISR.
+bool tuningHandshakeAlive();
+
 // Sends decimated control telemetry as CSV-formatted serial output.
 void tuningSendTelemetry(
 	double time_s,

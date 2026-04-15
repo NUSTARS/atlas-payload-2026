@@ -7,6 +7,7 @@ import socket
 import sys
 import threading
 import time
+from typing import Optional
 
 import serial
 
@@ -25,7 +26,9 @@ TEL_FIELDS = [
     "ff_gain",
 ]
 
+HEARTBEAT_PERIOD_S = 0.05
 
+ 
 def make_csv_path(out_dir: str) -> str:
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{out_dir.rstrip('/\\')}/teensy_tune_{stamp}.csv"
@@ -50,13 +53,18 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         metavar="PORT",
-        help="Commander mode: connect to the server on localhost:PORT and relay commands",
+        help="Command mode: connect to the server on localhost:PORT and relay commands",
     )
     return parser.parse_args()
 
 
-def send_line(ser: serial.Serial, msg: str) -> None:
+def send_line(ser: serial.Serial, msg: str, lock: Optional[threading.Lock] = None) -> None:
     payload = (msg.strip() + "\n").encode("utf-8")
+    if lock is not None:
+        with lock:
+            ser.write(payload)
+            ser.flush()
+        return
     ser.write(payload)
     ser.flush()
 
@@ -69,15 +77,82 @@ def print_help() -> None:
     print("  set d <v>               -> SET D gain")
     print("  set ff <v>              -> SET FF gain")
     print("  reset i                 -> zero integrator")
+    print("  newcsv                  -> rotate to a new CSV log file")
     print("  raw <text>              -> send raw command directly")
     print("  help                    -> show this help")
     print("  quit                    -> exit")
+
+
+class CsvLogger:
+    def __init__(self, out_dir: str) -> None:
+        self.out_dir = out_dir
+        self._lock = threading.Lock()
+        self._fieldnames = ["pc_time_s"] + TEL_FIELDS
+        self._csv_file = None
+        self._csv_writer = None
+        self._csv_path = ""
+        self.rotate()
+
+    @property
+    def path(self) -> str:
+        with self._lock:
+            return self._csv_path
+
+    def rotate(self) -> str:
+        new_path = make_csv_path(self.out_dir)
+        new_file = open(new_path, "w", newline="", encoding="utf-8")
+        new_writer = csv.DictWriter(new_file, fieldnames=self._fieldnames)
+        new_writer.writeheader()
+        new_file.flush()
+
+        old_file = None
+        with self._lock:
+            old_file = self._csv_file
+            self._csv_file = new_file
+            self._csv_writer = new_writer
+            self._csv_path = new_path
+
+        if old_file is not None:
+            old_file.close()
+
+        return new_path
+
+    def write_row(self, row: dict) -> None:
+        with self._lock:
+            if self._csv_writer is None or self._csv_file is None:
+                return
+            self._csv_writer.writerow(row)
+            self._csv_file.flush()
+
+    def close(self) -> None:
+        with self._lock:
+            file_to_close = self._csv_file
+            self._csv_file = None
+            self._csv_writer = None
+        if file_to_close is not None:
+            file_to_close.close()
+
+
+def heartbeat_loop(
+    ser: serial.Serial,
+    stop_evt: threading.Event,
+    serial_lock: threading.Lock,
+) -> None:
+    while not stop_evt.is_set():
+        try:
+            send_line(ser, "HB", serial_lock)
+        except serial.SerialException:
+            stop_evt.set()
+            return
+        stop_evt.wait(HEARTBEAT_PERIOD_S)
 
 
 def cmd_server_loop(
     port: int,
     ser: serial.Serial,
     stop_evt: threading.Event,
+    serial_lock: threading.Lock,
+    csv_logger: CsvLogger,
 ) -> None:
     """Accept one TCP client at a time; relay received lines to the serial port."""
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -108,7 +183,16 @@ def cmd_server_loop(
                 cmd = line.strip()
                 if not cmd:
                     continue
-                send_line(ser, cmd)
+
+                if cmd.lower() in ("newcsv", "new csv"):
+                    new_path = csv_logger.rotate()
+                    try:
+                        conn.sendall(f"[LOG] {new_path}\n".encode("utf-8"))
+                    except OSError:
+                        break
+                    continue
+
+                send_line(ser, cmd, serial_lock)
                 try:
                     conn.sendall(f"[ACK] {cmd}\n".encode("utf-8"))
                 except OSError:
@@ -158,6 +242,8 @@ def commander_main(port: int) -> int:
                 continue
             if low == "gains":
                 wire_cmd = "GET GAINS"
+            elif low in ("newcsv", "new csv"):
+                wire_cmd = "NEWCSV"
             elif low == "reset i":
                 wire_cmd = "RESET I"
             elif low.startswith("set "):
@@ -198,8 +284,7 @@ def commander_main(port: int) -> int:
 def reader_loop(
     ser: serial.Serial,
     stop_evt: threading.Event,
-    csv_writer: csv.DictWriter,
-    csv_file,
+    csv_logger: CsvLogger,
     line_queue: queue.Queue,
 ) -> None:
     telem_count = 0
@@ -233,8 +318,7 @@ def reader_loop(
                     continue
 
                 row["pc_time_s"] = time.time()
-                csv_writer.writerow(row)
-                csv_file.flush()
+                csv_logger.write_row(row)
 
                 telem_count += 1
                 now = time.time()
@@ -259,29 +343,31 @@ def main(args: argparse.Namespace) -> int:
         print("--port is required. Use --connect PORT for commander mode.")
         return 1
 
-    csv_path = make_csv_path(args.csv)
-
     try:
         ser = serial.Serial(args.port, args.baud, timeout=0.2)
     except serial.SerialException as exc:
         print(f"Failed to open serial port: {exc}")
         return 1
 
-    print(f"Connected: {args.port} @ {args.baud}")
-    print(f"Logging to: {csv_path}")
+    csv_logger = CsvLogger(args.csv)
 
-    csv_file = open(csv_path, "w", newline="", encoding="utf-8")
-    fieldnames = ["pc_time_s"] + TEL_FIELDS
-    csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-    csv_writer.writeheader()
-    csv_file.flush()
+    print(f"Connected: {args.port} @ {args.baud}")
+    print(f"Logging to: {csv_logger.path}")
 
     stop_evt = threading.Event()
     line_queue: queue.Queue = queue.Queue()
+    serial_lock = threading.Lock()
+
+    hb_thread = threading.Thread(
+        target=heartbeat_loop,
+        args=(ser, stop_evt, serial_lock),
+        daemon=True,
+    )
+    hb_thread.start()
 
     t = threading.Thread(
         target=reader_loop,
-        args=(ser, stop_evt, csv_writer, csv_file, line_queue),
+        args=(ser, stop_evt, csv_logger, line_queue),
         daemon=True,
     )
     t.start()
@@ -291,7 +377,7 @@ def main(args: argparse.Namespace) -> int:
             # Server mode: commands come from a second terminal via TCP
             cmd_srv_thread = threading.Thread(
                 target=cmd_server_loop,
-                args=(args.cmd_port, ser, stop_evt),
+                args=(args.cmd_port, ser, stop_evt, serial_lock, csv_logger),
                 daemon=True,
             )
             cmd_srv_thread.start()
@@ -308,7 +394,7 @@ def main(args: argparse.Namespace) -> int:
         else:
             # Normal mode: commands come from stdin in this window
             print_help()
-            send_line(ser, "GET GAINS")
+            send_line(ser, "GET GAINS", serial_lock)
 
             while not stop_evt.is_set():
                 while True:
@@ -333,10 +419,14 @@ def main(args: argparse.Namespace) -> int:
                     print_help()
                     continue
                 if low == "gains":
-                    send_line(ser, "GET GAINS")
+                    send_line(ser, "GET GAINS", serial_lock)
+                    continue
+                if low in ("newcsv", "new csv"):
+                    new_path = csv_logger.rotate()
+                    print(f"[LOG] Now writing to: {new_path}")
                     continue
                 if low == "reset i":
-                    send_line(ser, "RESET I")
+                    send_line(ser, "RESET I", serial_lock)
                     continue
                 if low.startswith("set "):
                     tokens = cmd.split()
@@ -352,10 +442,10 @@ def main(args: argparse.Namespace) -> int:
                     except ValueError:
                         print("Value must be numeric")
                         continue
-                    send_line(ser, f"SET {gain_key} {tokens[2]}")
+                    send_line(ser, f"SET {gain_key} {tokens[2]}", serial_lock)
                     continue
                 if low.startswith("raw "):
-                    send_line(ser, cmd[4:])
+                    send_line(ser, cmd[4:], serial_lock)
                     continue
 
                 print("Unknown command. Type 'help'.")
@@ -365,11 +455,12 @@ def main(args: argparse.Namespace) -> int:
     finally:
         stop_evt.set()
         t.join(timeout=1.0)
+        hb_thread.join(timeout=1.0)
         try:
             ser.close()
         except Exception:
             pass
-        csv_file.close()
+        csv_logger.close()
 
     print("Exited cleanly.")
     return 0
