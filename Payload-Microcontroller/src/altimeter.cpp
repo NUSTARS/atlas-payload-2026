@@ -12,6 +12,7 @@
  * BSD license, all text above must be included in any redistribution
  */
 
+#include <altimeter.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
@@ -217,6 +218,7 @@ bool initAltimeter() {
   
   Serial.println();
 }
+
 // readAltimeter: (void) -> float
 // reads the current altitude from the altimeter
 void readAltimeter(AltimeterData &data) {
