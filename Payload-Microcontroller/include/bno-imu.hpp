@@ -4,7 +4,7 @@
 
 static const uint32_t REPORT_US = 5000;   // 200 Hz
 
-static const uint32_t CONTROL_PERIOD_us = 500000; // 500 ms
+static const uint32_t CONTROL_PERIOD_us = 10000;
 
 
 struct IMUData {
@@ -27,7 +27,7 @@ bool initIMU() {
   Wire1.begin();          // use SDA1 / SCL1 at default 100 kHz for init
 
   // Serial.println("Before begin_I2C (Wire1)");
-  bool ok = bno.begin_I2C(0x4A, &Wire1);  // explicitly pass Wire1
+  bool ok = bno.begin_I2C(0x4B, &Wire1);  // explicitly pass Wire1
   // Serial.println("After begin_I2C");
 
   // Raise to 400 kHz only after successful handshake — setting it before
@@ -76,7 +76,7 @@ uint8_t readIMU(IMUData &data) {
   data.timeUTC = 0.001 * (double)millis();
   uint8_t got = 0;
 
-  for (int n = 0; n < 20; n++) {
+  for (int n = 0; n < 6; n++) {
     if (!bno.getSensorEvent(&val)) break;
 
     switch (val.sensorId) {

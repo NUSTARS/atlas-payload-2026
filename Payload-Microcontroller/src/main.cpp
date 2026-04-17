@@ -24,7 +24,7 @@ enum flight_phase {
 #define RUN_CONTROLS_THRESHOLD_M 300
 #define LANDED_THRESHOLD_M 10
 
-#define BUZZER_PIN 14
+#define BUZZER_PIN 23
 
 // GLOBALS =========================================================================
 float base_altitude_m;
@@ -121,30 +121,33 @@ void setup() {
   setup_slave();
   Serial.println("set up teensy as slave");
 
-  // bool bat_sensor_setup = initBatSensor();
-  // Serial.println("set up battery sensor!");
-  /*
+  bool bat_sensor_setup = initBatSensor();
+  Serial.println("set up battery sensor!");
   if (!bat_sensor_setup) {
     while (1) {
       delay(200);
     }
   }
-  */
 
   // Initialize Altimeter
-  // bool success_alti_setup = initAltimeter();
-  // Serial.println("set up Altimeter!");
-  // if (!success_alti_setup) {
-  //   while (1) {
-  //     delay(200);
-  //   }
-  // }
-  // readAltimeter(flight_data);
-  // base_altitude_m = flight_data.altitude_m;
+  bool success_alti_setup = initAltimeter();
+  Serial.println("set up Altimeter!");
+  if (!success_alti_setup) {
+    while (1) {
+      delay(200);
+    }
+  }
+  readAltimeter(flight_data);
+  base_altitude_m = flight_data.altitude_m;
 
   // Initialize serial IMU (VectorNav on Serial2)
-  initIMU();
-  Serial.println("set up serial IMU on Serial2!");
+  bool success_imu_setup = initIMU();
+  if (!success_imu_setup) {
+    while (1) {
+      delay(200);
+    }
+  }
+  Serial.println("set up serial IMU on Wire1!");
 
   // Initialize Kalman Filter
   float dt0 = 1/100.0f; // seconds
@@ -167,15 +170,6 @@ void setup() {
 
 // LOOP ============================================================================
 void loop() {
-
-  // Serial.println("Here");
-
-
-
-  // Debug output: very sparse to avoid blocking the 50Hz control path
-
-
-
   // readBatSensor(battery_data);
   // Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
   // Serial.print("Current (mA): ");Serial.println(battery_data.current_ma);
@@ -191,23 +185,23 @@ void loop() {
 
   // Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
 
-  // static unsigned long prevSend = 0;
-  // if (millis() - prevSend >= 10) { // 100 Hz packet publish
+  static unsigned long prevSend = 0;
+  if (millis() - prevSend >= 10) { // 100 Hz packet publish
     
-  //   // set values into packet 
-  //   spi_packet_set_voltage(battery_data.voltage_v);
+    // set values into packet 
+    spi_packet_set_voltage(battery_data.voltage_v);
 
-  //   spi_packet_set_altitude(flight_data.altitude_m);
+    spi_packet_set_altitude(flight_data.altitude_m);
 
-  //   spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
+    spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
     
-  //   spi_packet_set_state(current_phase);
+    spi_packet_set_state(current_phase);
 
-  //   // build packet
-  //   build_spi_buffer();
+    // build packet
+    build_spi_buffer();
 
-  //   prevSend = millis();
-  // }
+    prevSend = millis();
+  }
 
   // // Serial.print("Current Phase: "); Serial.println(current_phase);
 
