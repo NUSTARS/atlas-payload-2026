@@ -34,7 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define numBytes 55
+#define numBytes 56
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
