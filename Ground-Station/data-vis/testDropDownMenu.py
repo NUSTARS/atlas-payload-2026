@@ -11,15 +11,15 @@ import tkinter as tk
 from tkinter import ttk
 
 
-# ALTITUDE (plotted) 2 bytes
-# ORIENTATION IN ALL 3 AXES (numbers & plot) 2*3=6 bytes
+# ALTITUDE (plotted) 4 bytes
+# ORIENTATION IN ALL 3 AXES (numbers & plot) 3*4=12 bytes
 # LONGITUDE AND LATITUDE (number) 2*8=16 bytes
-# VELOCITY IN ALL 3 AXES (plotted) 6 bytes
+# VELOCITY IN ALL 3 AXES (plotted) 12 bytes
 # STATE (number) 1 byte
-# BATTERY VOLTAGE (number) 1 byte
-# FRAME COUNTER (number) 1 byte
+# BATTERY VOLTAGE (number) 4 byte
+# FRAME COUNTER (number) 2 bytes
 # TIME SINCE STARTUP (number) 4 bytes 
-# 2+6+16+6+1+1+1+4 = 37 bytes total
+# 4+12+16+12+1+4+2+4 = 55 bytes total
 
 # TAKE DIFFERENCE BETWEEN STARTING LAT AND LONG BETWEEN CURRENT
 # VERTICAL VELOCITY
@@ -64,7 +64,7 @@ SAVE_DATA = False       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
 firstDataPoint = True
 
 numVars = 13
-frameSize = 37
+frameSize = 55
 
 altitudePlot = 0
 orientationPlot = [1, 2, 3] # and numbers!
@@ -88,7 +88,7 @@ bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage 
 def parse_message(msg):
     if len(msg) != frameSize:
         return None
-    return struct.unpack('<Hhhh' + 'dd' + 'hhh' + 'BBBf', msg)  # same packing as in sample tx
+    return struct.unpack('<ffff' + 'dd' + 'ff' + 'B' + 'f' + 'H' + 'f', msg)  # same packing as in sample tx
 
 # --------------------------
 # Setup Serial
