@@ -64,16 +64,17 @@ SAVE_DATA = False       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
 firstDataPoint = True
 
 numVars = 13
-frameSize = 37
+frameSize = 56
 
 altitudePlot = 0
 orientationPlot = [1, 2, 3] # and numbers!
-longlatitudes = [4, 5]
-velocityPlot = [6, 7, 8]
-state = [9]
-batteryVoltage = [10]
-frameCounter = [11]
-timeSinceStartup = [12]
+velocityPlot = [4, 5, 6]
+batteryVoltage = [7]
+timeSinceStartup = [8]
+longlatitudes = [9, 10]
+state = [11]
+frameCounter = [12]
+
 
 startup = False
 
@@ -88,7 +89,7 @@ bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage 
 def parse_message(msg):
     if len(msg) != frameSize:
         return None
-    return struct.unpack('<Hhhh' + 'dd' + 'hhh' + 'BBBf', msg)  # same packing as in sample tx
+    return struct.unpack('<fffffffff' + 'dd' + 'HH', msg)  # same packing as in sample tx
 
 # --------------------------
 # Setup Serial
