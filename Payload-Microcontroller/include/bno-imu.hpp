@@ -76,7 +76,7 @@ uint8_t readIMU(IMUData &data) {
   data.timeUTC = 0.001 * (double)millis();
   uint8_t got = 0;
 
-  for (int n = 0; n < 6; n++) {
+  for (int n = 0; n < 20; n++) {
     if (!bno.getSensorEvent(&val)) break;
 
     switch (val.sensorId) {
