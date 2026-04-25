@@ -99,11 +99,11 @@ void setupControls() {
     delay(200);
 
     // Set velocity mode before requesting closed loop
-    sendCmd("w axis0.controller.config.control_mode 2");
+    sendCmd("w axis0.controller.config.control_mode 1");
     delay(100);
 
-    // Optional: set a very small velocity directly
-    sendCmd("w axis0.controller.input_vel 0.2");
+    // Optional: set no torque
+    sendCmd("w axis0.controller.input_torque 0.0");
     delay(100);
 
     // Now try to enter closed loop
@@ -124,9 +124,11 @@ void setupControls() {
     // Serial.println(queryODrive("r axis0.controller.input_vel"));
 }
 
-void setVel() {
-    sendCmd("w axis0.controller.input_vel 0.2");
+void setTorque(float torque_val) {
+    char cmd[64];
+    snprintf(cmd, sizeof(cmd), "w axis0.controller.input_torque %.3f", torque_val);
+    sendCmd(cmd);
 
-    Serial.print("active_errors: ");
-    Serial.println(queryODrive("r axis0.active_errors"));
+    // Serial.print("active_errors: ");
+    // Serial.println(queryODrive("r axis0.active_errors"));
 }

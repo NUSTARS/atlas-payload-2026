@@ -9,29 +9,41 @@
 
 // DEFINES =========================================================================
 enum flight_phase {
-  ON_PAD,
-  POST_BOOST,
-  ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD,
-  DESCENDING,
+  LAUNCH_PAD, // = 0
+  BOOST,
+  APOGEE,
   RUN_CONTROLS,
-  LANDED,
-  TUNING
+  LANDED
 };
 
-#define POST_BOOST_THRESHOLD_M 112
-#define ASCENDING_CONTROL_LOCKOUT_THRESHOLD_M 1000
-#define DESCENDING_ALTITUDE_DELTA_M 1234
-#define RUN_CONTROLS_THRESHOLD_M 300
-#define LANDED_THRESHOLD_M 10
+#define BOOST_DETECTION_HEIGHT_M 64 // 50 feet 
+#define APOGEE_DETECTION_HEIGHT_M 1980 // 6500 feet 
+#define RUN_CONTROLS_HEIGHT_M 198 // 650 feet 
+
+#define HEIGHT_LOCKOUT_CONTROLS_M 3
+#define TIME_LOCKOUT_CONTROLS_MILLIS 45000 
+
+#define TORQUE_APPLYING_PERIOD_MILLIS 4000
+
+// #define BOOST_DETECTION_HEIGHT_M 0.5 // 50 feet 
+// #define APOGEE_DETECTION_HEIGHT_M 0.9 // 6500 feet 
+// #define RUN_CONTROLS_HEIGHT_M 0.5 // 650 feet 
+
+// #define HEIGHT_LOCKOUT_CONTROLS_M 0
+// #define TIME_LOCKOUT_CONTROLS_MILLIS 10000
+
+// #define TORQUE_APPLYING_PERIOD_MILLIS 2000
 
 #define BUZZER_PIN 23
 
 // GLOBALS =========================================================================
-float base_altitude_m;
 float prev_altitude_m = 0.0; // for use in check for advance to DESCENDING state
 
+float TORQUE_EXERTING = 0.9;
+bool TORQUE_SIGN_POS = true;
 
-flight_phase current_phase = flight_phase::RUN_CONTROLS;
+
+int current_phase;
 
 AltimeterData flight_data;
 
@@ -42,6 +54,8 @@ IMUData imu_data;
 BatteryData battery_data;
 
 IntervalTimer control_timer;
+
+unsigned long startedControlsTime;
 
 long long counter = 0;
 
@@ -113,56 +127,66 @@ long long counter = 0;
 //   }
 // }
 
-// SETUP ===========================================================================
-void setup() {
-  Serial.begin(115200);
-  delay(1500);
-
-  setup_slave();
-  Serial.println("set up teensy as slave");
-
-  bool bat_sensor_setup = initBatSensor();
-  Serial.println("set up battery sensor!");
-  if (!bat_sensor_setup) {
-    while (1) {
-      delay(200);
-    }
-  }
-
-  // Initialize Altimeter
-  bool success_alti_setup = initAltimeter();
-  Serial.println("set up Altimeter!");
-  if (!success_alti_setup) {
-    while (1) {
-      delay(200);
-    }
-  }
-  readAltimeter(flight_data);
-  base_altitude_m = flight_data.altitude_m;
-
-  // Initialize serial IMU (VectorNav on Serial2)
-  bool success_imu_setup = initIMU();
-  if (!success_imu_setup) {
-    while (1) {
-      delay(200);
-    }
-  }
-  Serial.println("set up serial IMU on Wire1!");
-
-  // Initialize Kalman Filter
-  float dt0 = 1/100.0f; // seconds
-  // // FIXME read imu and store to
-  float roll_heading0 = 0.0;
-  float roll_velocity0 = 0.0;
-  Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
-  kf.init(dt0, z0);
-
-  // call buzzer
-  pinMode(BUZZER_PIN, OUTPUT);
+void buzz() {
   digitalWrite(BUZZER_PIN, HIGH);
 
   delay(500);
   digitalWrite(BUZZER_PIN, LOW);
+}
+
+
+// SETUP ===========================================================================
+void setup() {
+  Serial.begin(115200);
+  // delay(1500);
+
+  setupControls();
+  setup_slave();
+  // Serial.println("set up teensy as slave");
+
+  bool bat_sensor_setup = initBatSensor();
+  // Serial.println("set up battery sensor!");
+  // if (!bat_sensor_setup) {
+  //   while (1) {
+  //     delay(200);
+  //   }
+  // }
+
+  // Initialize Altimeter
+  bool success_alti_setup = initAltimeter();
+  // Serial.println("set up Altimeter!");
+  // if (!success_alti_setup) {
+  //   while (1) {
+  //     delay(200);
+  //   }
+  // }
+
+  // Initialize serial IMU (VectorNav on Serial2)
+  bool success_imu_setup = initIMU();
+  // if (!success_imu_setup) {
+  //   while (1) {
+  //     delay(200);
+  //   }
+  // }
+  // Serial.println("set up serial IMU on Wire1!");
+
+  // Initialize Kalman Filter
+  // float dt0 = 1/100.0f; // seconds
+  // // // FIXME read imu and store to
+  // float roll_heading0 = 0.0;
+  // float roll_velocity0 = 0.0;
+  // Eigen::Vector<float,2> z0 = meas_vector(roll_heading0, roll_velocity0);
+  // kf.init(dt0, z0);
+
+  // call buzzer
+  pinMode(BUZZER_PIN, OUTPUT);
+  // buzz();
+
+  current_phase = LAUNCH_PAD;
+
+  // clear errors 
+  sendCmd("w axis0.error 0");
+  
 
   // control_timer.priority(0);
   // control_timer.begin(controlInterrupt, CONTROL_PERIOD_us);
@@ -170,21 +194,27 @@ void setup() {
 
 // LOOP ============================================================================
 void loop() {
-  readIMU(imu_data);
-  readBatSensor(battery_data);
-  Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
-  Serial.print("Current (mA): ");Serial.println(battery_data.current_ma);
-  Serial.print("Power (mW): ");Serial.println(battery_data.power_mw);
-  Serial.print("Load Voltage (V): ");Serial.println(battery_data.load_voltage_V);
-  Serial.println();
+  Serial.println("hello world");
+  // Serial.println(queryODrive("r axis0.active_errors"));
+  // sendCmd("u 0\n");
+  // sendCmd("w axis0.error 0");
 
-  readAltimeter(flight_data);
-  Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
-  Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
-  Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
-  Serial.println();
+  // readIMU(imu_data);
+  // readBatSensor(battery_data);
+  // Serial.print("Voltage (V): ");Serial.println(battery_data.voltage_v);
+  // Serial.print("Current (mA): ");Serial.println(battery_data.current_ma);
+  // Serial.print("Power (mW): ");Serial.println(battery_data.power_mw);
+  // Serial.print("Load Voltage (V): ");Serial.println(battery_data.load_voltage_V);
+  // Serial.println();
 
-  Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
+  // readAltimeter(flight_data);
+  static float base_altitude_m = flight_data.altitude_m;
+  // Serial.print("Temp (C): ");Serial.println(flight_data.temp_C);
+  // Serial.print("Pressure (hPa): ");Serial.println(flight_data.pressure_hPa);
+  // Serial.print("Altitude (meters): ");Serial.println(flight_data.altitude_m);
+  // Serial.println();
+
+  // Serial.print("Time (s): "); Serial.println(imu_data.timeUTC, 3);
 
   static unsigned long prevSend = 0;
   if (millis() - prevSend >= 10) { // 100 Hz packet publish
@@ -206,45 +236,75 @@ void loop() {
 
   // Serial.print("Current Phase: "); Serial.println(current_phase);
 
-  setVel();
+  // LAUNCH_PAD,
+  // BOOST,
+  // APOGEE,
+  // RUN_CONTROLS,
+  // LANDED
 
   float altitude_agl_m = flight_data.altitude_m - base_altitude_m;
+  Serial.print("Altitude: "); Serial.println(altitude_agl_m);
   switch (current_phase) {
+    case LAUNCH_PAD:
 
-    case ON_PAD:
-      if (altitude_agl_m > POST_BOOST_THRESHOLD_M) {
-        current_phase = POST_BOOST;
-        Serial.println("LIFTOFF DETECTED");
-        pinMode(BUZZER_PIN, OUTPUT);
-        digitalWrite(BUZZER_PIN, HIGH);
+      if (altitude_agl_m > BOOST_DETECTION_HEIGHT_M) {
+        Serial.println("BOOST DETECTED");
+        current_phase = BOOST;
+        // Serial.println("LIFTOFF DETECTED");
+        // buzz();
+        delay(1500);
 
-        delay(500);
-        digitalWrite(BUZZER_PIN, LOW);
       }
+      break;
     
-    case (flight_phase::POST_BOOST):
-      if (altitude_agl_m > ASCENDING_CONTROL_LOCKOUT_THRESHOLD_M) {
-        current_phase = flight_phase::ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD;
-      }
+    case BOOST:
+      // heartbeat for the ODrive
       
-    case (flight_phase::ABOVE_ASCENDING_CONTROL_LOCKOUT_THRESHOLD):
-      if (prev_altitude_m - altitude_agl_m > DESCENDING_ALTITUDE_DELTA_M ) {
-        current_phase = flight_phase::DESCENDING;
+      if (altitude_agl_m > APOGEE_DETECTION_HEIGHT_M) {
+        Serial.println("APOGEE DETECTED");
+        current_phase = APOGEE;
+        // buzz();
+        delay(1500);
       }
-      prev_altitude_m = altitude_agl_m;
+      break;
+      
+    case APOGEE:
 
-    case DESCENDING:
-      if (altitude_agl_m < RUN_CONTROLS_THRESHOLD_M) {
+      if (altitude_agl_m < RUN_CONTROLS_HEIGHT_M) {
+        Serial.println("CONTROLS RUNNING");
         current_phase = RUN_CONTROLS;
-        Serial.println("STARTING CONTROL SYSTEM");
-        // Trigger RPi to start capturing pictures
+        startedControlsTime = millis();
+        // buzz();
+        delay(1500);
       }
-    
+      break;
+      
+
     case RUN_CONTROLS:
-      if (altitude_agl_m  < LANDED_THRESHOLD_M) {
-        current_phase = LANDED;
-        Serial.println("LANDED");
+      static unsigned long prevCmdSent = millis();
+      setTorque((float) (TORQUE_EXERTING * ((((int) TORQUE_SIGN_POS) << 1) - 1)));
+
+      // SEND CMD TO ODRIVE EVERY 2 SEC
+      if (millis() - prevCmdSent >= TORQUE_APPLYING_PERIOD_MILLIS) { // 0.5 Hz
+        TORQUE_SIGN_POS = !TORQUE_SIGN_POS;
+
+        prevCmdSent = millis();
       }
+
+      if (altitude_agl_m < HEIGHT_LOCKOUT_CONTROLS_M || millis() - startedControlsTime > TIME_LOCKOUT_CONTROLS_MILLIS) {
+        current_phase = LANDED;
+        Serial.println("LANDING DETECTED");
+        // buzz();
+        delay(1500);
+      }
+      break;
+    
+    case LANDED:
+      // send command to the ODrive to stop spinning
+      setTorque(0.0);
+      break;
+
+
     //default:
       
       //Serial.println("Default");

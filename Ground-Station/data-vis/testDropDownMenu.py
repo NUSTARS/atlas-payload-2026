@@ -13,7 +13,7 @@ from tkinter import ttk
 
 # ALTITUDE (plotted) 4 bytes
 # ORIENTATION IN ALL 3 AXES (numbers & plot) 3*4=12 bytes
-# LONGITUDE AND LATITUDE (number) 2*8=16 bytes
+# LONGITUDE AND LATITUDE (neaumber) 2*8=16 bytes
 # VELOCITY IN ALL 3 AXES (plotted) 12 bytes
 # STATE (number) 1 byte
 # BATTERY VOLTAGE (number) 4 byte
@@ -59,7 +59,7 @@ COM_PORT = selected_port
 BAUD_RATE = 115200      # match STM32 UART baud rate
 TIMEOUT = 1             # seconds
 SHOW_GRAPHS = True      # set to True to show scrolling line plots
-SAVE_DATA = False       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
+SAVE_DATA = True       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
 
 firstDataPoint = True
 
@@ -79,9 +79,17 @@ frameCounter = [12]
 startup = False
 
 # change these to whatever states we actually choose
-statesInText = ["Standby", 'Launching', "Apogee"]
+statesInText = ["Launchpad", "Boost", "Apogee", "Running Controls", "Landed"]
 
-bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [7] + [13] + [14]
+#  altitudePlot = 0
+# orientationPlot = [1, 2, 3] # and numbers!
+# velocityPlot = [4, 5, 6]
+# batteryVoltage = [7]
+# timeSinceStartup = [8]
+# longlatitudes = [9, 10]
+# state = [11]
+# frameCounter = [12]
+bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [6] + [13] + [14]
 
 # --------------------------
 # Functions
