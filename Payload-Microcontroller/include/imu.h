@@ -30,4 +30,9 @@ bool getLatestIMUData(IMUData &out);
 // Use this to run control exactly once per new IMU sample.
 uint32_t getIMUSequence();
 
+// Atomically read and clear the frame-ready flag.
+// Returns true if a new frame has arrived since last call, false otherwise.
+// Safe to call from ISR context.
+bool clearIMUFrameReady();
+
 

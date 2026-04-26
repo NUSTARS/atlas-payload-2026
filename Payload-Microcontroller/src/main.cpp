@@ -5,7 +5,9 @@
 #include <controls.h>
 #include <pi-communication.h>
 #include <KalmanFilter.h>
-#include <bno-imu.hpp>
+//#include <bno-imu.hpp>
+#include <imu.h>
+#include <tuning.h>
 
 // DEFINES =========================================================================
 enum flight_phase {
@@ -62,6 +64,60 @@ long long counter = 0;
 // INTERRUPTS ======================================================================
 
 // control interrupt has been deleted and that stuff has moved to main loop
+
+// INTERRUPTS ======================================================================
+
+// 1600 Hz control ISR with reentrancy guard
+static volatile bool control_running = false;
+
+static void controlISR() {
+    // Skip this tick if control is still running from previous tick
+    if (control_running) return;
+    control_running = true;
+
+    // Drain IMU serial buffer at high frequency
+    serviceIMU();
+
+    // Run control if a new IMU frame has arrived
+    if (clearIMUFrameReady() && current_phase == RUN_CONTROLS) {
+        if (getLatestIMUData(imu_data)) {
+            double time_s = imu_data.timeUTC * 1e-3;
+
+            spi_packet_set_imu(imu_data.ypr, imu_data.angularRate, imu_data.posLla);
+            
+            // debug printout of time and ypr
+            // Serial.print("Time (s): "); Serial.println(time_s, 3);
+            // Serial.print( "YPR (deg): "); Serial.print(imu_data.ypr[0], 2); Serial.print(", "); Serial.print(imu_data.ypr[1], 2); Serial.print(", "); Serial.println(imu_data.ypr[2], 2);
+            
+            // Kalman filter
+            float roll_heading = imu_data.ypr[0];
+            float roll_velocity = imu_data.angularRate[0];
+            Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity);
+            kf.predict();
+            kf.update(z);
+            Eigen::Vector3f x_hat = kf.state();
+
+            // PID + feedforward control
+            float pid_result = PIDControl(roll_heading, roll_velocity);
+            float ff_result = feedForwardControl(x_hat[2]);
+            float motor_cmd = pid_result + ff_result;
+
+            if (!tuningHandshakeAlive()) {
+              // Deadman watchdog: host heartbeat missing, force safe output.
+              motor_cmd = 0.0f;
+            }
+
+            motorControl(motor_cmd);
+
+            // Tuning telemetry
+            tuningSendTelemetry(time_s, roll_heading, roll_velocity, x_hat[2], pid_result, ff_result, motor_cmd);
+        }
+    }
+
+    control_running = false;
+}
+
+
 
 // void controlInterrupt() {
 
@@ -139,7 +195,7 @@ void buzz() {
 void setup() {
   Serial.begin(115200);
   // delay(1500);
-
+  tuningServiceUsbCommands();
   setupControls();
   setup_slave();
   // Serial.println("set up teensy as slave");
@@ -194,7 +250,7 @@ void setup() {
 
 // LOOP ============================================================================
 void loop() {
-  Serial.println("hello world");
+  //Serial.println("hello world");
   // Serial.println(queryODrive("r axis0.active_errors"));
   // sendCmd("u 0\n");
   // sendCmd("w axis0.error 0");
@@ -281,7 +337,7 @@ void loop() {
       
 
     case RUN_CONTROLS:
-      static unsigned long prevCmdSent = millis();
+      /*static unsigned long prevCmdSent = millis();
       setTorque((float) (TORQUE_EXERTING * ((((int) TORQUE_SIGN_POS) << 1) - 1)));
 
       // SEND CMD TO ODRIVE EVERY 2 SEC
@@ -289,7 +345,7 @@ void loop() {
         TORQUE_SIGN_POS = !TORQUE_SIGN_POS;
 
         prevCmdSent = millis();
-      }
+      }*/
 
       if (altitude_agl_m < HEIGHT_LOCKOUT_CONTROLS_M || millis() - startedControlsTime > TIME_LOCKOUT_CONTROLS_MILLIS) {
         current_phase = LANDED;
