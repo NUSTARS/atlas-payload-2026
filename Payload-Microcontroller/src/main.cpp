@@ -197,6 +197,7 @@ void setup() {
   // delay(1500);
   tuningServiceUsbCommands();
   setupControls();
+  control_timer.begin(controlISR, 150000); // every 0.15 seconds
   setup_slave();
   // Serial.println("set up teensy as slave");
 
