@@ -17,13 +17,8 @@ from gpiod.line import Direction, Value
 # SX1276 - Raspberry connections
 DIO0                      = 4
 RST                       = 27
-<<<<<<< HEAD
-TX                        = 22
-RX                        = 23
-=======
 TX                        = 15
 RX                        = 14
->>>>>>> afac1aa7b866026bddba0396900c80310f48c4d4
 
 BUS                       = 1
 DEVICE                    = 1
@@ -591,15 +586,9 @@ def configure(fq, bw, cr, header, sf, CRC, sync, power, preamble):
 
 if __name__ == "__main__":
     print('hi!')
-<<<<<<< HEAD
-=======
     init_gpios()
     sx1276_reset()
     devices = scan_spi_for_sx1276()
->>>>>>> afac1aa7b866026bddba0396900c80310f48c4d4
-
-    # sx1276_reset()
-    # devices = scan_spi_for_sx1276()
 
     # if devices:
     #     print("Found SX1276 on:")

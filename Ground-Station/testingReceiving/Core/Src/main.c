@@ -34,7 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define numBytes 56
+#define numBytes 58
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -205,15 +205,25 @@ int main(void)
 	  // After receiving the ACK from the pi, get ready to receive data normally
 	  case STATE_NORMAL_OP:
 	  {
+//		  // Send packet can be as simple as
+//		  uint8_t res = lora_send_packet(&lora, (uint8_t *)"test", 4);
+//		  if (res != LORA_OK) {
+//		    // Send failed
+//		  }
+
 		  uint8_t res;
 		  lora_mode_receive_continuous(&lora);
 
 		  uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
+		  buffer[56] = (uint8_t)lora_packet_rssi(&lora);
+		  buffer[57] = lora_packet_snr(&lora);
+		  uint8_t testbuf[numBytes];
+		  memcpy(testbuf, buffer, 58);
 		  // added for rylr
 		  if (res == LORA_OK && len > 0) {
 			  HAL_UART_Transmit(&huart2,
 					  buffer,
-					  len,
+					  numBytes,
 					  100);
 	        	  	  	  }
 	  }

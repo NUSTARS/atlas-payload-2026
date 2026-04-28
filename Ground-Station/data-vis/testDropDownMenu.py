@@ -19,7 +19,10 @@ from tkinter import ttk
 # BATTERY VOLTAGE (number) 4 byte
 # FRAME COUNTER (number) 2 bytes
 # TIME SINCE STARTUP (number) 4 bytes 
-# 4+12+16+12+1+4+2+4 = 55 bytes total
+# above is unupdated
+# 9 floats 2 doubles 2 unsigned short 2 floats (rssi and snr)
+# 4+12+16+12+1+4+2+4 = 56 bytes total
+# + 8 = 64 bytes total
 
 # TAKE DIFFERENCE BETWEEN STARTING LAT AND LONG BETWEEN CURRENT
 # VERTICAL VELOCITY
@@ -64,7 +67,7 @@ SAVE_DATA = True       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
 firstDataPoint = True
 
 numVars = 13
-frameSize = 56
+frameSize = 58
 
 altitudePlot = 0
 orientationPlot = [1, 2, 3] # and numbers!
@@ -97,7 +100,7 @@ bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage 
 def parse_message(msg):
     if len(msg) != frameSize:
         return None
-    return struct.unpack('<fffffffff' + 'dd' + 'HH', msg)  # same packing as in sample tx
+    return struct.unpack('<fffffffff' + 'dd' + 'HH' + 'bB', msg)  # same packing as in sample tx
 
 # --------------------------
 # Setup Serial
@@ -219,13 +222,14 @@ if SAVE_DATA == True:
         "Time",
         "Altitude",
         "OrientX", "OrientY", "OrientZ",
-        "Longitude", "Latitude",
         "VelX", "VelY", "VelZ",
-        "State",
         "Battery",
-        "Frame",
         "TimeSinceStartup",
-        'Longitude Change', 'Latitude Change'
+        "Longitude", "Latitude",
+        "State",
+        "Frame",
+        'Longitude Change', 'Latitude Change',
+        "RSSI", "SNR"
     ])
 
 # --------------------------
@@ -248,7 +252,6 @@ try:
     #             ser.reset_input_buffer() # Clear the "ACK" text so it doesn't mess up binary parsing
             
     while plt.fignum_exists(fig.number):
-        
         rowmsg = ser.read(frameSize)
         if len(rowmsg) != frameSize:
             continue
@@ -272,12 +275,12 @@ try:
 
         battery_value = ch_values[batteryVoltage[0]]
 
-        if battery_value < 20:
-            title_texts[6].set_color('red')  # battery index
-            number_texts[6].set_color('red')  # battery index
+        if battery_value < 14:
+            title_texts[batteryVoltage[0]-1].set_color('red')  # battery index
+            number_texts[batteryVoltage[0]-1].set_color('red')  # battery index
         else:
-            title_texts[6].set_color('green')  # battery index
-            number_texts[6].set_color('green')
+            title_texts[batteryVoltage[0]-1].set_color('green')  # battery index
+            number_texts[batteryVoltage[0]-1].set_color('green')
 
         if SAVE_DATA == True:
             current_time = datetime.now().strftime("%H:%M:%S.%f")
@@ -286,17 +289,19 @@ try:
                 current_time,
                 ch_values[0],
                 ch_values[1], ch_values[2], ch_values[3],
-                ch_values[4], ch_values[5],
-                ch_values[6], ch_values[7], ch_values[8],
-                ch_values[9],
-                ch_values[10],
+                ch_values[4], ch_values[5], ch_values[6], 
+                ch_values[7], 
+                ch_values[8],
+                ch_values[9], ch_values[10],
                 ch_values[11],
                 ch_values[12],
-                ch_values[13],
-                ch_values[14]
+                ch_values[13], ch_values[14],
+                ch_values[15], ch_values[16]
             ])
 
             csv_file.flush()
+
+        ch_values = [round(x,2) for x in ch_values] 
 
         # -----------------------
         # Update Big Numbers

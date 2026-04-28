@@ -36,14 +36,10 @@ void sendLoRa(int16_t *data, int numValues) {
   LORA.println();
 
   delay(200);
-
+  
   while (LORA.available()) {
-    uint8_t b = LORA.read();
-    if (b < 16) Serial.print("0");
-    Serial.print(b, HEX);
-    Serial.print(" ");
+    Serial.write(LORA.read());
   }
-  Serial.println();
 }
 
 uint8_t frameNumber = 0;
@@ -92,5 +88,5 @@ void loop() {
 
   sendLoRa(dummy_frames[frameNumber], numValues);
   frameNumber = (frameNumber + 1) % 5;  // cycle through frames
-  delay(1000);
+  delay(100);
 }
