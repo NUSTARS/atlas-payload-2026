@@ -98,9 +98,9 @@ def parse_message(msg):
 
 # To startup payload to make it start sending data, you press enter
 ser = serial.Serial(COM_PORT, BAUD_RATE, timeout=TIMEOUT)
-# input("Press ENTER to send START command to STM: ")
-# ser.write(b"START")
-# print("Command sent. Waiting for LoRa handshake...")
+input("Press ENTER to send START command to STM: ")
+ser.write(b"START")
+print("Command sent. Waiting for LoRa handshake...")
 
 # --------------------------
 # Setup Matplotlib for numbers
@@ -226,20 +226,20 @@ if SAVE_DATA == True:
 # Main loop
 # --------------------------
 try:
-    # while startup == False:
-    #     if ser.in_waiting > 0:
-    #         # Use readline() because STM32 printf() ends with \r\n
-    #         line = ser.readline().decode('utf-8', errors='ignore').strip()
+    while startup == False:
+        if ser.in_waiting > 0:
+            # Use readline() because STM32 printf() ends with \r\n
+            line = ser.readline().decode('utf-8', errors='ignore').strip()
             
-    #         if line:
-    #             print(f"[STM32]: {line}")
+            if line:
+                print(f"[STM32]: {line}")
                 
-    #         # Checks that STM received the correct ACK
-    #         if "Starting normal routine" in line:
-    #             print("Handshake confirmed! Opening plots...")
-    #             startup = True
-    #             time.sleep(1) # Small buffer to let UART clear
-    #             ser.reset_input_buffer() # Clear the "ACK" text so it doesn't mess up binary parsing
+            # Checks that STM received the correct ACK
+            if "Starting normal routine" in line:
+                print("Handshake confirmed! Opening plots...")
+                startup = True
+                time.sleep(1) # Small buffer to let UART clear
+                ser.reset_input_buffer() # Clear the "ACK" text so it doesn't mess up binary parsing
             
     while plt.fignum_exists(fig.number):
         rowmsg = ser.read(frameSize)

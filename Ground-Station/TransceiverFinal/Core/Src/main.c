@@ -136,10 +136,8 @@ int main(void)
   } SystemState_t;
 
   // start at beginning
-  SystemState_t current_state = STATE_NORMAL_OP;
+  SystemState_t current_state = STATE_WAIT_FOR_UART;
   char start_cmd[6];
-
-  lora_mode_receive_continuous(&lora);
 
 
 
@@ -207,7 +205,7 @@ int main(void)
 	  // After receiving the ACK from the pi, get ready to receive data normally
 	  case STATE_NORMAL_OP:
 	  {
-//		  // Send packet can be as simple as
+		  // Send packet can be as simple as
 //		  uint8_t res = lora_send_packet(&lora, (uint8_t *)"test", 4);
 //		  if (res != LORA_OK) {
 //		    // Send failed

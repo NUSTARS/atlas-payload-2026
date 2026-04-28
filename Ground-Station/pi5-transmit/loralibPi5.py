@@ -520,12 +520,12 @@ def receive():
                 else:
                     # Divide by 4
                     SNR = ( value & 0xFF ) >> 2
-                print("Packet RSSI:", (readReg(REG_PKT_RSSI)-rssicorr))
-                print("RSSI:", readReg(REG_RSSI)-rssicorr)
-                print("SNR:", SNR)
-                print("Payload length:", receivedbytes)
-                print("Message: ")
-                print(rx_message)
+                # print("Packet RSSI:", (readReg(REG_PKT_RSSI)-rssicorr))
+                # print("RSSI:", readReg(REG_RSSI)-rssicorr)
+                # print("SNR:", SNR)
+                # print("Payload length:", receivedbytes)
+                # print("Message: ")
+                # print(rx_message)
                 return rx_message
 
 def scan_spi_for_sx1276(
