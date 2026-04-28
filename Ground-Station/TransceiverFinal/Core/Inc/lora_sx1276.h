@@ -14,7 +14,7 @@
 #define LORA_BASE_FREQUENCY_EU             (868LLU*MHZ)
 
 // Default settings
-#define LORA_DEFAULT_TX_POWER              17
+#define LORA_DEFAULT_TX_POWER              3
 #define LORA_DEFAULT_SF                    7
 #define LORA_DEFAULT_PREAMBLE_LEN          8
 #define LORA_DEFAULT_RX_ADDR               0

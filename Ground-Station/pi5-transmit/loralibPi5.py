@@ -582,9 +582,9 @@ def configure(fq, bw, cr, header, sf, CRC, sync, power, preamble):
         setSyncWord(sync)
         configPower(power)
         setPreambleLength(preamble)
-        # setPayloadLength(payload)
 
 if __name__ == "__main__":
+    print('hi!')
     init_gpios()
     sx1276_reset()
     devices = scan_spi_for_sx1276()

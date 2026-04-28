@@ -342,18 +342,20 @@ int8_t lora_packet_rssi(lora_sx1276 *lora)
 {
   assert_param(lora);
 
-  uint8_t rssi = read_register(lora, REG_PKT_RSSI_VALUE);
-
-  return lora->frequency < (868 * MHZ) ? rssi - 164 : rssi - 157;
+//  uint8_t rssi = read_register(lora, REG_PKT_RSSI_VALUE);
+//
+//  return lora->frequency < (868 * MHZ) ? rssi - 164 : rssi - 157;
+    return read_register(lora, REG_PKT_RSSI_VALUE);
 }
 
 uint8_t lora_packet_snr(lora_sx1276 *lora)
 {
   assert_param(lora);
 
-  uint8_t snr = read_register(lora, REG_PKT_SNR_VALUE);
-
-  return snr / 4;
+//  uint8_t snr = read_register(lora, REG_PKT_SNR_VALUE);
+//
+//  return snr / 4;
+  	return read_register(lora, REG_PKT_SNR_VALUE);
 }
 
 void lora_set_signal_bandwidth(lora_sx1276 *lora, uint64_t bw)

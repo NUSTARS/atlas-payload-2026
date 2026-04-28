@@ -20,9 +20,7 @@ from tkinter import ttk
 # FRAME COUNTER (number) 2 bytes
 # TIME SINCE STARTUP (number) 4 bytes 
 # above is unupdated
-# 9 floats 2 doubles 2 unsigned short 2 floats (rssi and snr)
 # 4+12+16+12+1+4+2+4 = 56 bytes total
-# + 8 = 64 bytes total
 
 # TAKE DIFFERENCE BETWEEN STARTING LAT AND LONG BETWEEN CURRENT
 # VERTICAL VELOCITY
@@ -62,12 +60,12 @@ COM_PORT = selected_port
 BAUD_RATE = 115200      # match STM32 UART baud rate
 TIMEOUT = 1             # seconds
 SHOW_GRAPHS = True      # set to True to show scrolling line plots
-SAVE_DATA = False       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
+SAVE_DATA = True       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
 
 firstDataPoint = True
 
-numVars = 13
-frameSize = 56
+numVars = 15
+frameSize = 58
 
 altitudePlot = 0
 orientationPlot = [1, 2, 3] # and numbers!
@@ -92,7 +90,7 @@ bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage 
 def parse_message(msg):
     if len(msg) != frameSize:
         return None
-    return struct.unpack('<fffffffff' + 'dd' + 'HH', msg)  # same packing as in sample tx
+    return struct.unpack('<fffffffff' + 'dd' + 'HH' + 'BB', msg)  # same packing as in sample tx
 
 # --------------------------
 # Setup Serial
@@ -220,8 +218,8 @@ if SAVE_DATA == True:
         "Longitude", "Latitude",
         "State",
         "Frame",
-        'Longitude Change', 'Latitude Change'
-        # ,"RSSI", "SNR"
+        'Longitude Change', 'Latitude Change',
+        "RSSI", "SNR"
     ])
 
 # --------------------------
@@ -251,6 +249,14 @@ try:
         ch_values = parse_message(rowmsg)
         if len(ch_values) != numVars:
             continue
+
+        raw_rssi = ch_values[13]
+        raw_snr = ch_values[14]
+
+        # 915MHz math: RSSI = PacketRssi - 157
+        actual_rssi = raw_rssi - 157
+        # SNR = PacketSnr / 4
+        actual_snr = raw_snr / 4
     
         if firstDataPoint == True:
             startingLong = ch_values[longlatitudes[0]]
@@ -287,8 +293,8 @@ try:
                 ch_values[9], ch_values[10],
                 ch_values[11],
                 ch_values[12],
-                ch_values[13], ch_values[14]
-                #, ch_values[15], ch_values[16]
+                ch_values[13], ch_values[14],
+                actual_rssi, actual_snr
             ])
 
             csv_file.flush()
@@ -370,9 +376,8 @@ try:
         # -----------------------
         # Refresh ONE figure
         # -----------------------
-        plt.pause(0.001)
-        # fig.canvas.draw_idle()
-        # fig.canvas.flush_events()
+        fig.canvas.draw_idle()
+        fig.canvas.flush_events()
 
         time.sleep(0.05)
 

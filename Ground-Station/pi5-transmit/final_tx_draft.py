@@ -50,8 +50,6 @@ class Packet:
     battery_voltage: int # uint8 1 byte
     time_since_startup: float # float 2 bytes
     frame_counter: int = 0 # uint8 1 byte
-
-    # 37 bytes total, I thought it was 35 but apparently it isn't, I cba to find out why rn
     
     # Need to make sure orientation is just degrees from -360 to 360,
     # velocity is from -32768 to 32767, 

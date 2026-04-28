@@ -50,7 +50,7 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 
 // Receive buffer
-uint8_t buffer[numBytes];
+uint8_t buffer[numBytes + 2];
 
 uint8_t buf_len = numBytes;
 
@@ -217,15 +217,15 @@ int main(void)
 		  uint8_t res;
 
 		  uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
-//		  buffer[56] = (uint8_t)lora_packet_rssi(&lora);
-//		  buffer[57] = lora_packet_snr(&lora);
-//		  uint8_t testbuf[numBytes];
-//		  memcpy(testbuf, buffer, 58);
+		  buffer[56] = lora_packet_rssi(&lora);
+		  buffer[57] = lora_packet_snr(&lora);
+		  int8_t testbuf[numBytes + 2];
+		  memcpy(testbuf, buffer, 58);
 		  // added for rylr
 		  if (res == LORA_OK && len > 0) {
 			  HAL_UART_Transmit(&huart2,
 					  buffer,
-					  numBytes,
+					  numBytes + 2,
 					  100);
 	        	  	  	  }
 	  }
