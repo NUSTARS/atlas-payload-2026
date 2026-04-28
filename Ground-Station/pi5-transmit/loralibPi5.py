@@ -585,14 +585,13 @@ def configure(fq, bw, cr, header, sf, CRC, sync, power, preamble):
         # setPayloadLength(payload)
 
 if __name__ == "__main__":
-    print('hi!')
     init_gpios()
     sx1276_reset()
     devices = scan_spi_for_sx1276()
 
-    # if devices:
-    #     print("Found SX1276 on:")
-    #     for bus, dev in devices:
-    #         print(f"   - spidev{bus}.{dev}")
-    # else:
-    #     print("No SX1276 devices detected on SPI")
+    if devices:
+        print("Found SX1276 on:")
+        for bus, dev in devices:
+            print(f"   - spidev{bus}.{dev}")
+    else:
+        print("No SX1276 devices detected on SPI")

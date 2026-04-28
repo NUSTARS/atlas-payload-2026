@@ -62,12 +62,12 @@ COM_PORT = selected_port
 BAUD_RATE = 115200      # match STM32 UART baud rate
 TIMEOUT = 1             # seconds
 SHOW_GRAPHS = True      # set to True to show scrolling line plots
-SAVE_DATA = True       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
+SAVE_DATA = False       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
 
 firstDataPoint = True
 
 numVars = 13
-frameSize = 58
+frameSize = 56
 
 altitudePlot = 0
 orientationPlot = [1, 2, 3] # and numbers!
@@ -84,14 +84,6 @@ startup = False
 # change these to whatever states we actually choose
 statesInText = ["Launchpad", "Boost", "Apogee", "Running Controls", "Landed"]
 
-#  altitudePlot = 0
-# orientationPlot = [1, 2, 3] # and numbers!
-# velocityPlot = [4, 5, 6]
-# batteryVoltage = [7]
-# timeSinceStartup = [8]
-# longlatitudes = [9, 10]
-# state = [11]
-# frameCounter = [12]
 bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [6] + [13] + [14]
 
 # --------------------------
@@ -100,7 +92,7 @@ bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage 
 def parse_message(msg):
     if len(msg) != frameSize:
         return None
-    return struct.unpack('<fffffffff' + 'dd' + 'HH' + 'bB', msg)  # same packing as in sample tx
+    return struct.unpack('<fffffffff' + 'dd' + 'HH', msg)  # same packing as in sample tx
 
 # --------------------------
 # Setup Serial
@@ -209,8 +201,8 @@ if SAVE_DATA == True:
     # Make folder if it doesn't exist
     os.makedirs(log_folder, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_filename = f"telemetry_log_{timestamp}.csv"
+    timestamp = datetime.now().strftime("%b%d_%H%M")
+    csv_filename = f"flightdata_{timestamp}.csv"
 
     full_path = os.path.join(log_folder, csv_filename)
 
@@ -228,8 +220,8 @@ if SAVE_DATA == True:
         "Longitude", "Latitude",
         "State",
         "Frame",
-        'Longitude Change', 'Latitude Change',
-        "RSSI", "SNR"
+        'Longitude Change', 'Latitude Change'
+        # ,"RSSI", "SNR"
     ])
 
 # --------------------------
@@ -295,8 +287,8 @@ try:
                 ch_values[9], ch_values[10],
                 ch_values[11],
                 ch_values[12],
-                ch_values[13], ch_values[14],
-                ch_values[15], ch_values[16]
+                ch_values[13], ch_values[14]
+                #, ch_values[15], ch_values[16]
             ])
 
             csv_file.flush()
@@ -379,6 +371,8 @@ try:
         # Refresh ONE figure
         # -----------------------
         plt.pause(0.001)
+        # fig.canvas.draw_idle()
+        # fig.canvas.flush_events()
 
         time.sleep(0.05)
 
