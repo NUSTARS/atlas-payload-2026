@@ -13,26 +13,21 @@ struct IMUData {
     uint16_t insStatus;
 };
 
-// Initialize Serial2 for the IMU at the given baud rate and send configuration commands.
+enum IMUReadStatus {
+    IMU_READ_OK = 0,
+    IMU_READ_TIMEOUT,
+    IMU_READ_CRC_FAIL
+};
+
+// Initialize Serial5 for the IMU at the given baud rate.
 bool initIMU(uint32_t baudRate = 115200);
 
-// Service the serial RX buffer. Call every main loop iteration.
-// Drains Serial2 into an internal buffer, assembles complete 88-byte packets,
-// validates CRC-16, and atomically publishes the latest valid packet.
-void serviceIMU();
+// Blocking receive for one full binary frame.
+// Returns detailed status for timeout/CRC debugging.
+IMUReadStatus readIMUFrameBlocking(uint32_t timeoutMs);
 
-// Copy the most recently published complete IMU packet into out.
-// Returns true if at least one valid packet has been received, false otherwise.
-// Safe to call from the 50Hz control ISR.
+// Copy the most recently parsed IMU packet into out.
+// Returns true if at least one valid packet has been received.
 bool getLatestIMUData(IMUData &out);
-
-// Monotonic counter incremented each time a valid IMU frame is published.
-// Use this to run control exactly once per new IMU sample.
-uint32_t getIMUSequence();
-
-// Atomically read and clear the frame-ready flag.
-// Returns true if a new frame has arrived since last call, false otherwise.
-// Safe to call from ISR context.
-bool clearIMUFrameReady();
 
 
