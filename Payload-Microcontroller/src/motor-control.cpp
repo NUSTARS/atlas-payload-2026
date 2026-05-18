@@ -33,7 +33,7 @@ String readODrive(String cmd) {
   return resp;
 }
 
-void setup() {
+void motorSetup() {
   Serial.begin(115200);
   
   // ODrive S1 default baud is 115200, but ensure your 
@@ -44,7 +44,7 @@ void setup() {
   Serial.println("ODrive S1 Error Reader Initialized");
 }
 
-void loop() {
+void motorLoop() {
   // On ODrive S1, 'active_errors' is the common check
   String axisErr = readODrive("r axis0.active_errors");
 

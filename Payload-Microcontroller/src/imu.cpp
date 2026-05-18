@@ -7,7 +7,7 @@
 #include <Arduino.h>
 #include <string.h>
 
-static const size_t FRAME_LEN = 88; // fixed binary packet length
+static const size_t FRAME_LEN = 50; // fixed binary packet length
 static IMUData imu_latest;
 static bool imu_valid = false;
 
@@ -62,16 +62,16 @@ static void parseFrame(const uint8_t *frame) {
     imu_latest.angularRate[0] = read_f32(&frame[24]);
     imu_latest.angularRate[1] = read_f32(&frame[28]);
     imu_latest.angularRate[2] = read_f32(&frame[32]);
-    imu_latest.posLla[0] = read_f64(&frame[36]);
-    imu_latest.posLla[1] = read_f64(&frame[44]);
-    imu_latest.posLla[2] = read_f64(&frame[52]);
-    imu_latest.velBody[0] = read_f32(&frame[60]);
-    imu_latest.velBody[1] = read_f32(&frame[64]);
-    imu_latest.velBody[2] = read_f32(&frame[68]);
-    imu_latest.accel[0] = read_f32(&frame[72]);
-    imu_latest.accel[1] = read_f32(&frame[76]);
-    imu_latest.accel[2] = read_f32(&frame[80]);
-    imu_latest.insStatus = ((uint16_t) frame[84] | ((uint16_t) frame[85] << 8));
+    // imu_latest.posLla[0] = read_f64(&frame[36]);
+    // imu_latest.posLla[1] = read_f64(&frame[44]);
+    // imu_latest.posLla[2] = read_f64(&frame[52]);
+    // imu_latest.velBody[0] = read_f32(&frame[60]);
+    // imu_latest.velBody[1] = read_f32(&frame[64]);
+    // imu_latest.velBody[2] = read_f32(&frame[68]);
+    imu_latest.accel[0] = read_f32(&frame[36]);
+    imu_latest.accel[1] = read_f32(&frame[40]);
+    imu_latest.accel[2] = read_f32(&frame[44]);
+    // imu_latest.insStatus = ((uint16_t) frame[84] | ((uint16_t) frame[85] << 8));
 
     imu_valid = true;
 }
@@ -95,6 +95,7 @@ IMUReadStatus readIMUFrameBlocking(uint32_t timeoutMs) {
     const uint32_t startUs = micros();
     uint8_t frame[FRAME_LEN];
     size_t idx = 0;
+    bool sawCrcFail = false;
 
     while ((uint32_t)(micros() - startUs) < timeoutUs) {
         if (!Serial5.available()) {
@@ -122,14 +123,32 @@ IMUReadStatus readIMUFrameBlocking(uint32_t timeoutMs) {
 
         uint16_t received = ((uint16_t)frame[FRAME_LEN - 2] << 8) | (uint16_t)frame[FRAME_LEN - 1];
         if (computed != received) {
-            return IMU_READ_CRC_FAIL;
+            sawCrcFail = true;
+
+            // Resynchronize by finding the next possible sync byte in the current buffer.
+            size_t nextSync = FRAME_LEN;
+            for (size_t i = 1; i < FRAME_LEN; i++) {
+                if (frame[i] == 0xFA) {
+                    nextSync = i;
+                    break;
+                }
+            }
+
+            if (nextSync < FRAME_LEN) {
+                size_t remaining = FRAME_LEN - nextSync;
+                memmove(frame, &frame[nextSync], remaining);
+                idx = remaining;
+            } else {
+                idx = 0;
+            }
+            continue;
         }
 
         parseFrame(frame);
         return IMU_READ_OK;
     }
 
-    return IMU_READ_TIMEOUT;
+    return sawCrcFail ? IMU_READ_CRC_FAIL : IMU_READ_TIMEOUT;
 }
 
 bool getLatestIMUData(IMUData &out) {
