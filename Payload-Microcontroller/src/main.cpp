@@ -46,6 +46,12 @@ enum flight_phase {
 #define IMU_FRAME_TIMEOUT_MS 10
 #define CONTROL_ISR_PERIOD_US 100000
 
+//
+// controls configurations
+//
+#define MIN_TORQUE 0.2 // the wheel must command at least this torque to overcome static friction
+#define OKEY_DOKEY_HEADING 5 // if the payload is within this angle, thats good enough
+
 #define BUZZER_PIN 23
 
 // GLOBALS =========================================================================
@@ -70,7 +76,7 @@ long long counter = 0;
 
 // INTERRUPTS ======================================================================
 
-// 1600 Hz control ISR with reentrancy guard
+// 100 Hz interrupt for polling VN and controls
 static volatile bool control_running = false;
 static volatile bool first_loop_with_data = true;
 static volatile float initial_yaw = 0;
@@ -138,30 +144,20 @@ static void controlISR() {
         // float ff_result = 0;
         float motor_cmd = pid_result + ff_result;
 
-
-        // if (abs(roll_heading-initial_yaw) > 170) {
-        //   // control_running = true;
-        //   motor_cmd = 0;
-        //   Serial.println("PID result: 1111111111111111111111");
-        // }
-
-        // if (!tuningHandshakeAlive()) {
-        //   // Deadman watchdog: host heartbeat missing, force safe output.
-        //   motor_cmd = 0.0f;
-        // }
-
         Serial.print( "PID Output: "); Serial.println(pid_result, 3);
         Serial.print( "FF Output: "); Serial.println(ff_result, 5);
         Serial.print( "Orientation: "); Serial.println(heading);
         Serial.print( "Angular Accel: "); Serial.println(angular_accel);
         Serial.println(); Serial.println(); Serial.println();
 
+        // actuator limits - do not command more than 1.5 Nm of torque
+        motor_cmd = constrain(motor_cmd, -1.5, 1.5);
 
-        setTorque(min(motor_cmd, 1.5));
+        // anti static friction - if command is too small, command MIN_TORQUE
+        motor_cmd = (motor_cmd > 0) ? max(motor_cmd, MIN_TORQUE) : min(motor_cmd, -MIN_TORQUE);
+
+        setTorque(motor_cmd);
         // setTorque(0.0);
-
-        // Tuning telemetry
-        // tuningSendTelemetry(time_s, roll_heading, roll_velocity, x_hat[2], pid_result, ff_result, motor_cmd);
     }
 
     control_running = false;
