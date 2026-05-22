@@ -9,17 +9,21 @@ struct IMUData {
     float angularRate[3];
     float accel[3];
     double posLla[3];
-    float velBody[3];
-    uint16_t insStatus;
+    // float velBody[3];
+    // uint16_t insStatus;
+};
+
+enum IMUReadStatus {
+    IMU_READ_OK = 0,
+    IMU_READ_TIMEOUT,
+    IMU_READ_CRC_FAIL
 };
 
 // Initialize Serial2 for the IMU at the given baud rate and send configuration commands.
 bool initIMU(uint32_t baudRate = 115200);
 
-// Service the serial RX buffer. Call every main loop iteration.
-// Drains Serial2 into an internal buffer, assembles complete 88-byte packets,
-// validates CRC-16, and atomically publishes the latest valid packet.
-void serviceIMU();
+// Read one full IMU frame with timeout. On success updates the latest IMU sample.
+IMUReadStatus readIMUFrameBlocking(uint32_t timeoutMs);
 
 // Copy the most recently published complete IMU packet into out.
 // Returns true if at least one valid packet has been received, false otherwise.
@@ -34,5 +38,4 @@ uint32_t getIMUSequence();
 // Returns true if a new frame has arrived since last call, false otherwise.
 // Safe to call from ISR context.
 bool clearIMUFrameReady();
-
 

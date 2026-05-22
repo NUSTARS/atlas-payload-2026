@@ -1,6 +1,12 @@
 
 #include "KalmanFilter.h"
 
+static float wrapAngle180(float angle) {
+    while (angle > 180.0f) angle -= 360.0f;
+    while (angle < -180.0f) angle += 360.0f;
+    return angle;
+}
+
 // no constructor
 KalmanFilter::KalmanFilter() : initialized(false)
 { 
@@ -43,6 +49,8 @@ void KalmanFilter::update(Eigen::Vector<float,2> z) {
     // Eigen::Vector<float,2> y;
     y = z - H*x_hat;
 
+    y[0] = wrapAngle180(y[0]);
+
     // S isn't an important matrix aside from fine tuning the filter
     // it looks like the P = F*P*FT + Q before so it's like the uncertainty associated with
     // the measurements combined with the current uncertainty
@@ -60,6 +68,8 @@ void KalmanFilter::update(Eigen::Vector<float,2> z) {
 
     // state vector update is x_k+1 = x_k + Ky
     x_hat += K * y;
+
+    x_hat[0] = wrapAngle180(x_hat[0]);
 
     // covariance update is P_k+1 = (I - K*H) * P_k
     Eigen::Matrix<float,3,3> KH = K * H;
@@ -121,11 +131,13 @@ void KalmanFilter::update_timestep(float dt) {
 }
 
 Eigen::Vector<float,2> meas_vector(float roll_heading, float roll_velocity) {
-    // angle conversion
-    static constexpr bool CONVERT_TO_RADIANS = false;
-    if (!CONVERT_TO_RADIANS) {
-        roll_heading = roll_heading * 57.29577f;
-        roll_velocity = roll_velocity * 57.29577f;
+    static constexpr bool CONVERT_TO_RADIANS = true;
+
+    if (CONVERT_TO_RADIANS) {
+        constexpr float DEG2RAD = 0.01745329252f; // pi / 180
+        roll_heading *= DEG2RAD;
+        roll_velocity *= DEG2RAD;
     }
-    return Eigen::Vector<float,2> {roll_heading, roll_velocity};
+
+    return Eigen::Vector<float,2>{roll_heading, roll_velocity};
 }

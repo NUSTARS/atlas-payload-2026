@@ -6,12 +6,24 @@
 
 // Tuning values
 // should all be positive
-static float P = 0.0f;
-static float I = 0.0f;
-static float D = 10.0f;
-static const float ISaturate = 10.0f;
 
-static float FFGain = 0.0f;
+static float antiWindup = 30;
+
+// best so far:
+// static float P = 0.00060f;
+// static float I = 0.00001f;
+// static float D = 0.015f;
+
+static float P = 0.00060f;
+//0.00003f -> old I
+static float I = 0.00001f;
+// static float D = 0.0120f;
+static float D = 0.015f;
+
+static const float ISaturate = 0.0003f;
+
+// static float FFGain = -0.0000004f;
+static float FFGain = 0.000001f;
 
 unsigned long prevT = 0;
 float prevError = 0;
@@ -52,7 +64,7 @@ float PIDControl(float heading, float angularVel) {
 
     //float dError = error - prevError;
 
-    iTerm += I * heading;
+    iTerm += I * max(min(heading, antiWindup), -antiWindup);
     iTerm = max(min(iTerm, ISaturate), -ISaturate);
 
     return (P * heading) - (D * angularVel) + iTerm;
@@ -63,17 +75,18 @@ float feedForwardControl(float angularAcc) {
 }
 
 // converts torques into analog pwm signals
-void motorControl(float torque) {
+// void motorControl(float torque) {
     
-    uint8_t voltage = (uint8_t) torque * 12345; // sus
-    analogWrite(MOTOR_PWM_PIN, voltage);
-}
+//     // uint8_t voltage = (uint8_t) torque * 12345; // sus
+//     // analogWrite(MOTOR_PWM_PIN, voltage);
+//     setTorque(float torque_val)
+// }
 
 
 void sendCmd(const char* cmd) {
   Serial2.print(cmd);
   Serial2.print('\n');
-  delay(50);
+  // delay(50);
 }
 
 String readLine(uint32_t timeout_ms = 200) {
@@ -91,37 +104,87 @@ String queryODrive(const char* cmd) {
 }
 
 
+// void setupControls() {
+//     Serial2.begin(115200);
+
+//     // Put axis in IDLE first
+//     sendCmd("w axis0.requested_state 1");
+//     delay(200);
+
+//     // // Set torque mode before requesting closed loop
+//     // sendCmd("w axis0.controller.config.control_mode 1");
+//     // delay(100);
+
+//     // Set torque mode before requesting closed loop
+//     sendCmd("w axis0.controller.config.control_mode 2");
+//     delay(500);
+    
+//     sendCmd("w axis0.controller.config.input_mode 1");
+//     delay(500);
+
+//     // Optional: set no torque
+//     // sendCmd("w axis0.controller.input_torque 0.0");
+//     // delay(100);
+
+//     // Now try to enter closed loop
+//     sendCmd("w axis0.requested_state 8");
+//     delay(500);
+
+//     sendCmd("w axis0.controller.input_vel 0.2");
+//     delay(500);
+
+//     // Print status
+//     // Serial.print("active_errors: ");
+//     // Serial.println(queryODrive("r axis0.active_errors"));
+
+//     // Serial.print("disarm_reason: ");
+//     // Serial.println(queryODrive("r axis0.disarm_reason"));
+
+//     // Serial.print("current_state: ");
+//     // Serial.println(queryODrive("r axis0.current_state"));
+
+//     // Serial.print("input_vel: ");
+//     // Serial.println(queryODrive("r axis0.controller.input_vel"));
+// }
+
 void setupControls() {
     Serial2.begin(115200);
 
     // Put axis in IDLE first
-    sendCmd("w axis0.requested_state 1");
+    sendCmd("w axis0.requested_state 1");   // IDLE
     delay(200);
 
-    // Set velocity mode before requesting closed loop
+    // Set control mode to TORQUE_CONTROL
     sendCmd("w axis0.controller.config.control_mode 1");
     delay(100);
 
-    // Optional: set no torque
-    sendCmd("w axis0.controller.input_torque 0.0");
+    // Keep passthrough input mode
+    sendCmd("w axis0.controller.config.input_mode 1");
     delay(100);
 
-    // Now try to enter closed loop
+    // Enter closed loop control
     sendCmd("w axis0.requested_state 8");
     delay(500);
 
-    // Print status
+    // Serial.println(queryODrive("r axis0.current_state")); // 1
+    // Serial.println(queryODrive("r axis0.active_errors")); // 0
+    // Serial.println(queryODrive("r axis0.disarm_reason")); // 0
+    // Serial.println(queryODrive("r axis0.procedure_result")); // 14
+
+    delay(5000);
+
+    sendCmd("w axis0.controller.input_torque 0");
+    delay(100);
+}
+
+void setVel() {
+    sendCmd("w axis0.controller.input_vel 1");
+
     // Serial.print("active_errors: ");
     // Serial.println(queryODrive("r axis0.active_errors"));
 
-    // Serial.print("disarm_reason: ");
-    // Serial.println(queryODrive("r axis0.disarm_reason"));
-
-    // Serial.print("current_state: ");
+    // Serial.print("current state: ");
     // Serial.println(queryODrive("r axis0.current_state"));
-
-    // Serial.print("input_vel: ");
-    // Serial.println(queryODrive("r axis0.controller.input_vel"));
 }
 
 void setTorque(float torque_val) {

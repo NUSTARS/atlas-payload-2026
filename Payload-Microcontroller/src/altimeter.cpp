@@ -270,11 +270,11 @@ bool initAltimeter() {
 	pinMode(0, OUTPUT);
 	digitalWrite(0, HIGH);  
 
-	SPI1.setMISO(1);
-	SPI1.setMOSI(26);
-	SPI1.setSCK(27);
-	SPI1.begin();
-  if (!bmp.begin(BMP5XX_ADDRESS, &Wire1)) {
+	Wire1.setSDA(17);
+	Wire1.setSCL(16);
+	Wire1.begin();
+	Wire1.setClock(100000);
+  	if (!bmp.begin(BMP5XX_ADDRESS, &Wire1)) {
 		Serial.println(F("Could not find a valid BMP5xx sensor, check wiring!"));
 		return false;
 	}
@@ -295,3 +295,6 @@ void readAltimeter(AltimeterData &data) {
 	data.altitude_m = bmp.readAltitude(groundPressureHPa);
 }
 //If you want the altitude to start at 0.0 at the launch site, you should capture the ground pressure during setup()
+
+
+

@@ -43,3 +43,5 @@ String queryODrive(const char* cmd);
 void setupControls();
 
 void setTorque(float torque_val);
+
+void setVel();
