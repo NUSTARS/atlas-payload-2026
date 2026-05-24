@@ -20,7 +20,7 @@ from tkinter import ttk
 # FRAME COUNTER (number) 2 bytes
 # TIME SINCE STARTUP (number) 4 bytes 
 # above is unupdated
-# 4+12+16+12+1+4+2+4 = 56 bytes total
+# 4+12+16+12+1+4+2+4 = 56 bytes total + 1 as sensor updates
 
 # TAKE DIFFERENCE BETWEEN STARTING LAT AND LONG BETWEEN CURRENT
 # VERTICAL VELOCITY
@@ -64,33 +64,40 @@ SAVE_DATA = True       # CHANGE BACK TO TRUE WHEN THE DATA IS REAL
 
 firstDataPoint = True
 
-numVars = 15
-frameSize = 58
+numVars = 16
+frameSize = 59
 
 altitudePlot = 0
 orientationPlot = [1, 2, 3] # and numbers!
-velocityPlot = [4, 5, 6]
-batteryVoltage = [7]
-timeSinceStartup = [8]
-longlatitudes = [9, 10]
+longlatitudes = [4, 5]
+velocityPlot = [6, 7, 8]
+batteryVoltage = [9]
+timeSinceStartup = [10]
 state = [11]
 frameCounter = [12]
-
+sensorByteIdx = 13     # Index of raw sensor byte in parsed struct elements
+rawRssiIdx = 14
+rawSnrIdx = 15
 
 startup = False
 
 # change these to whatever states we actually choose
 statesInText = ["Launchpad", "Boost", "Apogee", "Running Controls", "Landed"]
 
-bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [6] + [15] + [16] + [17] + [18]
+bigNumberDisplayOnly = orientationPlot + longlatitudes + state + \
+    batteryVoltage +  frameCounter + timeSinceStartup + \
+        [altitudePlot] + [velocityPlot[1]] + \
+            [numVars] + [numVars + 1] + [numVars + 2] + [numVars + 3] + [sensorByteIdx]
 
 # --------------------------
 # Functions
 # --------------------------
 def parse_message(msg):
     if len(msg) != frameSize:
+        print(msg)
         return None
-    return struct.unpack('<fffffffff' + 'dd' + 'HH' + 'BB', msg)  # same packing as in sample tx
+    # print(msg)
+    return struct.unpack('<ffffddfffffHHBBB', msg)  # same packing as in sample tx
 
 # --------------------------
 # Setup Serial
@@ -98,25 +105,41 @@ def parse_message(msg):
 
 # To startup payload to make it start sending data, you press enter
 ser = serial.Serial(COM_PORT, BAUD_RATE, timeout=TIMEOUT)
-input("Press ENTER to send START command to STM: ")
-ser.write(b"START")
-print("Command sent. Waiting for LoRa handshake...")
+validCommand = False
+while validCommand == False:
+    sendMe = input("Type START or TEST to send START or TEST command to STM: ")
+    if sendMe == "START":
+        ser.write(b"START")
+        print("START sent. Waiting for STM handshake...")
+        validCommand = True
+    elif sendMe == "TEST":
+        ser.write(b"TESTS")
+        print("TEST sent. Waiting for STM handshake...")
+        validCommand = True
+    else:
+        print("pwease try again")
 
 # --------------------------
 # Setup Matplotlib for numbers
 # --------------------------
 
-fig = plt.figure(figsize=(14, 8))
+fig = plt.figure(figsize=(15, 8.5))
 
 def close_callback(event):
     plt.close(fig)  # this will exit your main loop
-
-gs = fig.add_gridspec(5, 2, width_ratios=[3, 1])
+    
+# Updated grid constraints to allocate equal height bounds to graphs
+gs = fig.add_gridspec(4, 2, width_ratios=[2.2, 1.8], height_ratios=[1, 1, 1, 0.4])
+fig.subplots_adjust(hspace=0.55, wspace=0.22, bottom=0.08, left=0.06, right=0.96, top=0.95)
 
 # Left side plots
 ax_alt = fig.add_subplot(gs[0, 0])
-ax_orient = fig.add_subplot(gs[2, 0])
-ax_vel = fig.add_subplot(gs[4, 0])
+ax_orient = fig.add_subplot(gs[1, 0])
+ax_vel = fig.add_subplot(gs[2, 0])
+
+ax_sensors = fig.add_subplot(gs[3, 0])
+ax_sensors.axis('off')
+ax_sensors.text(0.5, 0.9, "Hardware Status Dashboard", fontsize=11, weight='bold', ha='center')
 
 # Right side numbers panel
 ax_nums = fig.add_subplot(gs[:, 1])
@@ -142,41 +165,54 @@ vel_lines = [ax_vel.plot([], [], color=c)[0] for c in colors_vel]
 ax_vel.set_title("Velocity (X,Y,Z)")
 ax_vel.legend(['Vx', 'Vy', 'Vz'], loc='upper left')
 
+sensor_names = ["Altimeter 1", "Current Sensor", "VN100", "Camera", "Altimeter 2"]
+sensor_dots = []
+sensor_texts = []
+
+for idx, name in enumerate(sensor_names):
+    x_pos = 0.04 + (idx * 0.20)
+    dot, = ax_sensors.plot(x_pos, 0.4, marker='o', markersize=12, 
+                           markerfacecolor='darkred', markeredgecolor='black')
+    txt = ax_sensors.text(x_pos - 0.1, 0.0 - (idx % 2) * 0.225 - 0.05, f"{name}\nDisconnected", 
+                          fontsize=8, va='center', ha='left', color='darkred', weight='bold')
+    sensor_dots.append(dot)
+    sensor_texts.append(txt)
+
+ax_sensors.set_xlim(0, 1)
+ax_sensors.set_ylim(0, 1)
+
 number_titles = [
     'Yaw', 'Pitch', 'Roll',
     'Longitude', 'Latitude',
     'State', 'Battery Voltage', 'Frame Counter', "Time Since Startup",
     'Altitude', 'Velocity (Y)', 'Longitude Change', 'Latitude Change',
-    'RSSI (dBm)', 'SNR (dB)'
+    'RSSI (dBm)', 'SNR (dB)', 'Sensor Mask (Raw)'
 ]
 
-x_positions = [.05,.05,.05,
-               .5,.5,
-               1,1,.05,.05,
-               1,1,.5,.5,
-               1, 1]
+x_positions = [.20, .50, .80,
+               .30, .70,
+               .50, .50, .20, .80,
+               .30, .70, .30, .70,
+               .20, .80, .50]
 
-y_positions = [0.92, 0.82, 0.72, 
-               0.60, 0.52, 
-               .10,0, 0.10, 0,
-               .92,.82,.40,.30,
-               .40, .30]
+y_positions = [0.92, 0.92, 0.92, 
+               0.76, 0.76, 
+               0.16, 0.04, 0.04, 0.04,
+               0.56, 0.56, 0.40, 0.40,
+               0.28, 0.28, 0.28]
 
 colors = ['red', 'green', 'blue', 
           'black', 'black', 
           'black', 'green', 'black', 'black',
           'red', 'red', 'red', 'red',
-          'gray', 'gray']
+          'gray', 'gray', 'purple']
 
 number_texts = []
 title_texts = []
 
 for x, y, title, c in zip(x_positions, y_positions, number_titles, colors):
-    title_obj = ax_nums.text(x, y+0.04, title,
-                             ha='center', fontsize=10, color=c)
-    value_obj = ax_nums.text(x, y,
-                             '', ha='center', fontsize=18, color=c)
-
+    title_obj = ax_nums.text(x, y+0.05, title, ha='center', fontsize=10, color=c, weight='bold')
+    value_obj = ax_nums.text(x, y, '---', ha='center', fontsize=16, color=c)
     title_texts.append(title_obj)
     number_texts.append(value_obj)
 
@@ -223,7 +259,7 @@ if SAVE_DATA == True:
         "State",
         "Frame",
         'Longitude Change', 'Latitude Change',
-        "RSSI", "SNR"
+        "RSSI", "SNR", "SensorByte"
     ])
 
 # --------------------------
@@ -246,21 +282,35 @@ try:
                 ser.reset_input_buffer() # Clear the "ACK" text so it doesn't mess up binary parsing
 
             if "Retry please" in line:
-                input("Press ENTER to send START command to STM: ")
-                ser.write(b"START")
-                print("Command sent. Waiting for LoRa handshake...")
+                validCommand = False
+                while validCommand == False:
+                    sendMe = input("Type START or TEST to send START or TEST command to STM: ")
+                    if sendMe == "START":
+                        ser.write(b"START")
+                        print("START sent. Waiting for STM handshake...")
+                        validCommand = True
+                    elif sendMe == "TEST":
+                        ser.write(b"TESTS")
+                        print("TEST sent. Waiting for STM handshake...")
+                        validCommand = True
+                    else:
+                        print("pwease try again")
+
             
     while plt.fignum_exists(fig.number):
         rowmsg = ser.read(frameSize)
         if len(rowmsg) != frameSize:
+            # print('rowmsg not equal framesize')
             continue
 
         ch_values = parse_message(rowmsg)
         if len(ch_values) != numVars:
+            # print('ch_values not equal numvars')
             continue
 
-        raw_rssi = ch_values[13]
-        raw_snr = ch_values[14]
+        raw_rssi = ch_values[rawRssiIdx]
+        raw_snr = ch_values[rawSnrIdx]
+        raw_sensor_byte = ch_values[sensorByteIdx]
 
         # 915MHz math: RSSI = PacketRssi - 157
         actual_rssi = raw_rssi - 157
@@ -272,11 +322,11 @@ try:
             startingLat = ch_values[longlatitudes[1]]
             firstDataPoint = False
 
-        ch_values = ch_values + ((ch_values[longlatitudes[0]] - startingLong),)
-        ch_values = ch_values + ((ch_values[longlatitudes[1]] - startingLat),)
+        ch_values = ch_values + ((ch_values[longlatitudes[0]] - startingLong),) # 17
+        ch_values = ch_values + ((ch_values[longlatitudes[1]] - startingLat),)  # 18
 
-        ch_values = ch_values + (actual_rssi,) # Index 17
-        ch_values = ch_values + (actual_snr,)  # Index 18
+        ch_values = ch_values + (actual_rssi,) # 19
+        ch_values = ch_values + (actual_snr,)  # 20
 
         # if abs(ch_values[orientationPlot[0]]) > 1000:
         #     continue
@@ -296,17 +346,17 @@ try:
             current_time = datetime.now().strftime("%H:%M:%S.%f")
 
             csv_writer.writerow([
-                current_time,
-                ch_values[0],
-                ch_values[1], ch_values[2], ch_values[3],
-                ch_values[4], ch_values[5], ch_values[6], 
-                ch_values[7], 
-                ch_values[8],
-                ch_values[9], ch_values[10],
-                ch_values[11],
-                ch_values[12],
-                ch_values[15], ch_values[16],
-                actual_rssi, actual_snr
+                current_time, # time
+                ch_values[0], # altitude
+                ch_values[1], ch_values[2], ch_values[3], # orient x y z
+                ch_values[6], ch_values[7], ch_values[8], # vel x y z
+                ch_values[9], # bat
+                ch_values[10], # time since startup
+                ch_values[4], ch_values[5], # long lat
+                ch_values[11], # state
+                ch_values[12], # frame
+                ch_values[numVars], ch_values[numVars+1], # long lat change
+                actual_rssi, actual_snr, raw_sensor_byte # rssi snr sensorbyte
             ])
 
             csv_file.flush()
@@ -328,6 +378,23 @@ try:
             else:
                 txt.set_text(str(ch_values[idx]))
 
+        statuses = [
+            (raw_sensor_byte >> 7) & 1,  # Altimeter 1 (Bit 8)
+            (raw_sensor_byte >> 6) & 1,  # Current Sensor (Bit 7)
+            (raw_sensor_byte >> 5) & 1,  # VN100 (Bit 4)
+            (raw_sensor_byte >> 4) & 1,   # Camera (Bit 3)
+            (raw_sensor_byte >> 3) & 1   # Altimeter 2 (Bit 2)
+        ]
+
+        for i, status in enumerate(statuses):
+            if status == 1:
+                sensor_dots[i].set_markerfacecolor('lime')
+                sensor_texts[i].set_text(f"{sensor_names[i]}: Detected")
+                sensor_texts[i].set_color('green')
+            else:
+                sensor_dots[i].set_markerfacecolor('darkred')
+                sensor_texts[i].set_text(f"{sensor_names[i]}: Disconnected")
+                sensor_texts[i].set_color('darkred')
         # -----------------------
         # Update Altitude Plot
         # -----------------------

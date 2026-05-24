@@ -1,0 +1,2 @@
+Time,Altitude,OrientX,OrientY,OrientZ,VelX,VelY,VelZ,Battery,TimeSinceStartup,Longitude,Latitude,State,Frame,Longitude Change,Latitude Change,RSSI,SNR,SensorByte
+02:43:02.451263,5301.419921875,12.5,-45.20000076293945,180.0,1.100000023841858,27.299999237060547,0.5,14.600000381469727,126.0,-87.6842,42.0581,1,1036,0.0,-20,-20,12.0,248

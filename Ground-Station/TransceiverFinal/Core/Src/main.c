@@ -34,7 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define numBytes 56
+#define numBytes 57
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,11 +48,6 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
-// Receive buffer
-uint8_t buffer[numBytes + 2];
-
-uint8_t buf_len = numBytes;
 
 /* USER CODE END PV */
 
@@ -121,7 +116,6 @@ int main(void)
 
   if (res != LORA_OK) {
 //      printf("LoRa init failed\r\n");
-	  lora_set_crc(&lora, 1);
   } else {
       uint8_t ver = lora_version(&lora);
 //      printf("LoRa Version: 0x%02X (%u)\r\n", ver, ver);
@@ -139,7 +133,8 @@ int main(void)
   SystemState_t current_state = STATE_WAIT_FOR_UART;
   char start_cmd[6];
 
-
+  char active_cmd[6] = {0};
+  uint8_t active_cmd_len = 0;
 
 
   /* USER CODE END 2 */
@@ -156,7 +151,15 @@ int main(void)
 		  if (HAL_UART_Receive(&huart2, (uint8_t*)start_cmd, 5, 100) == HAL_OK) {
 			  start_cmd[5] = '\0';
 			  if (strcmp(start_cmd, "START") == 0) {
-				  printf("UART Command Received. Initiating Handshake...\r\n");
+				  printf("UART Command Received. Initiating START Handshake...\r\n");
+				  strcpy(active_cmd, "START");
+				  active_cmd_len = 5;
+				  current_state = STATE_HANDSHAKE_TX;
+			  }
+			  else if (strcmp(start_cmd, "TESTS") == 0) {
+				  printf("UART Command Received. Initiating TEST Handshake...\r\n");
+				  strcpy(active_cmd, "TEST");
+				  active_cmd_len = 4;
 				  current_state = STATE_HANDSHAKE_TX;
 			  }
 		  }
@@ -165,8 +168,8 @@ int main(void)
 	  // after it gets a command to start the pi, it does this
 	  case STATE_HANDSHAKE_TX:
 		  // send START to pi, and wait to receive
-	      if (lora_send_packet_blocking(&lora, (uint8_t*)"START", 5, 2000) == LORA_OK) {
-	          printf("Handshake sent! Waiting for ACK...\r\n");
+		  if (lora_send_packet_blocking(&lora, (uint8_t*)active_cmd, active_cmd_len, 2000) == LORA_OK) {
+			  printf("Handshake (%s) sent! Waiting for ACK...\r\n", active_cmd);
 
 	          lora_mode_standby(&lora);
 	          HAL_Delay(10);
@@ -183,6 +186,11 @@ int main(void)
 	              if (memcmp(ack_buffer, "ACK", 3) == 0) {
 	                  printf("ACK received! Starting normal routine.\r\n");
 	                  current_state = STATE_NORMAL_OP;
+	              }
+	              else if (memcmp(ack_buffer, "TEST", 4) == 0) {
+	            	  printf("TEST received!\r\n");
+	            	  printf("Retry please\r\n");
+	            	  current_state = STATE_WAIT_FOR_UART;
 	              }
 	              // if we receive something but it's wrong, print it out so we know what's wrong
 	              else {
@@ -216,18 +224,32 @@ int main(void)
 
 		  uint8_t res;
 
-		  uint8_t len = lora_receive_packet_blocking(&lora, buffer, sizeof(buffer), 10000, &res);
-		  buffer[56] = lora_packet_rssi(&lora);
-		  buffer[57] = lora_packet_snr(&lora);
-		  int8_t testbuf[numBytes + 2];
-		  memcpy(testbuf, buffer, 58);
-		  // added for rylr
+		  uint8_t rx_payload[numBytes];
+
+		  lora_mode_standby(&lora);
+		  HAL_Delay(10);
+		  lora_clear_interrupt_rx_all(&lora);
+		  lora_mode_receive_continuous(&lora);
+
+		  uint8_t len = lora_receive_packet_blocking(&lora, rx_payload, numBytes, 10000, &res);
 		  if (res == LORA_OK && len > 0) {
+			  // 3. Create the clean transmission buffer (Data + RSSI + SNR)
+			  uint8_t tx_buffer[numBytes + 2];
+
+			  // 4. Safely copy ONLY the actual bytes received to the front of our tx_buffer
+			  memcpy(tx_buffer, rx_payload, len);
+
+			  // 5. Append RSSI and SNR precisely where the actual data ends
+			  tx_buffer[len]     = lora_packet_rssi(&lora);
+			  tx_buffer[len + 1] = lora_packet_snr(&lora);
+
+			  // 6. Transmit the complete packet over UART
+			  // Total size is the data length + 2 bytes of metadata
 			  HAL_UART_Transmit(&huart2,
-					  buffer,
-					  numBytes + 2,
+					  tx_buffer,
+					  len + 2,
 					  100);
-	        	  	  	  }
+		  }
 	  }
 	  break;
   }
