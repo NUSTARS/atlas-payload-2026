@@ -82,7 +82,7 @@ startup = False
 # change these to whatever states we actually choose
 statesInText = ["Launchpad", "Boost", "Apogee", "Running Controls", "Landed"]
 
-bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [6] + [13] + [14]
+bigNumberDisplayOnly = orientationPlot + longlatitudes + state + batteryVoltage + frameCounter + timeSinceStartup + [0] + [6] + [15] + [16] + [17] + [18]
 
 # --------------------------
 # Functions
@@ -146,23 +146,27 @@ number_titles = [
     'Yaw', 'Pitch', 'Roll',
     'Longitude', 'Latitude',
     'State', 'Battery Voltage', 'Frame Counter', "Time Since Startup",
-    'Altitude', 'Velocity (Y)', 'Longitude Change', 'Latitude Change'
+    'Altitude', 'Velocity (Y)', 'Longitude Change', 'Latitude Change',
+    'RSSI (dBm)', 'SNR (dB)'
 ]
 
 x_positions = [.05,.05,.05,
                .5,.5,
                1,1,.05,.05,
-               1,1,.5,.5]
+               1,1,.5,.5,
+               1, 1]
 
 y_positions = [0.92, 0.82, 0.72, 
                0.60, 0.52, 
                .10,0, 0.10, 0,
-               .92,.82,.40,.30]
+               .92,.82,.40,.30,
+               .40, .30]
 
 colors = ['red', 'green', 'blue', 
           'black', 'black', 
           'black', 'green', 'black', 'black',
-          'red', 'red', 'red', 'red']
+          'red', 'red', 'red', 'red',
+          'gray', 'gray']
 
 number_texts = []
 title_texts = []
@@ -240,6 +244,11 @@ try:
                 startup = True
                 time.sleep(1) # Small buffer to let UART clear
                 ser.reset_input_buffer() # Clear the "ACK" text so it doesn't mess up binary parsing
+
+            if "Retry please" in line:
+                input("Press ENTER to send START command to STM: ")
+                ser.write(b"START")
+                print("Command sent. Waiting for LoRa handshake...")
             
     while plt.fignum_exists(fig.number):
         rowmsg = ser.read(frameSize)
@@ -265,6 +274,9 @@ try:
 
         ch_values = ch_values + ((ch_values[longlatitudes[0]] - startingLong),)
         ch_values = ch_values + ((ch_values[longlatitudes[1]] - startingLat),)
+
+        ch_values = ch_values + (actual_rssi,) # Index 17
+        ch_values = ch_values + (actual_snr,)  # Index 18
 
         # if abs(ch_values[orientationPlot[0]]) > 1000:
         #     continue
@@ -293,7 +305,7 @@ try:
                 ch_values[9], ch_values[10],
                 ch_values[11],
                 ch_values[12],
-                ch_values[13], ch_values[14],
+                ch_values[15], ch_values[16],
                 actual_rssi, actual_snr
             ])
 

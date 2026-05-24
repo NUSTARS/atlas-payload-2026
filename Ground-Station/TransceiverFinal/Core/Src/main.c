@@ -175,7 +175,7 @@ int main(void)
 
 	          uint8_t ack_buffer[10] = {0}; // Initialize with zeros to help with printing
 	          uint8_t lora_res_code;
-	          uint8_t ack_len = lora_receive_packet_blocking(&lora, ack_buffer, sizeof(ack_buffer), 5000, &lora_res_code);
+	          uint8_t ack_len = lora_receive_packet_blocking(&lora, ack_buffer, sizeof(ack_buffer), 1500, &lora_res_code);
 
 	          // check that we receive something and didn't just time out
 	          if (lora_res_code == LORA_OK && ack_len >= 3) {
@@ -192,12 +192,14 @@ int main(void)
 	                      printf("%02X ", ack_buffer[i]);
 	                  }
 	                  printf("\r\n");
+	                  printf("Starting normal routine.\r\n");
+	                  current_state = STATE_NORMAL_OP;
 	              }
 	          } else {
 	              printf("Handshake timeout or error code: %d\r\n", lora_res_code);
-	              printf("Starting normal routine.\r\n");
+	              printf("Retry please\r\n");
 	              // Optional: for debugging, proceed anyway
-	              current_state = STATE_NORMAL_OP;
+	              current_state = STATE_WAIT_FOR_UART;
 	          }
 	      }
 	      break;

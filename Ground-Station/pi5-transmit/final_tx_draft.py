@@ -101,13 +101,13 @@ if __name__ == "__main__":
     loralib.setContMode(False)
     packet = Packet(*dummy_frames[0])
     print("waiting for start!")
-    # while startup == False:
-    #             command = loralib.receive()
-    #             if command == "START":
-    #                 startup = True
-    #                 time.sleep(1)
-    #                 loralib.transmit(b"ACK")
-    #                 time.sleep(1)
+    while startup == False:
+                command = loralib.receive()
+                if command == "START":
+                    startup = True
+                    time.sleep(1)
+                    loralib.transmit(b"ACK")
+                    time.sleep(1)
     while 1:  
         for frame in dummy_frames:
             # idk if .update is the best way to do it 
