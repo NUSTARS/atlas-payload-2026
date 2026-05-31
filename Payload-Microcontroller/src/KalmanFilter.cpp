@@ -21,6 +21,10 @@ void KalmanFilter::init(float dt0, Eigen::Vector<float,2> z0) {
         Eigen::Matrix<float,3,1> x0;
         x0 << z0[0], z0[1], 0.0f;
 
+        // Control input matrix
+        //B << dt0*dt0 / 2 / MOI, dt0 / MOI, 1 / MOI;
+        B << 0, 0, 1 / MOI;
+
         I.setIdentity();
         H << 1.0f, 0.0f, 0.0f, // measurement model matix
             0.0f, 1.0f, 0.0f; // this basically converts x (state) to compare to measurements
@@ -33,10 +37,10 @@ void KalmanFilter::init(float dt0, Eigen::Vector<float,2> z0) {
         initialized = true;
 }
 
-void KalmanFilter::predict() { 
+void KalmanFilter::predict(float u) { 
     // this predicts the new x for this iteration using the state transition matrix F
     // F is basically the dynamics of the system in a matrix
-    x_hat.noalias() = F * x_hat;
+    x_hat.noalias() = F * x_hat + B * u; // added control input
     // P_k+1 = F * P_k * FT + Q. Basically how correlated uncertainity evolves + process noise
     Eigen::Matrix<float, 3, 3> FP;
     FP.noalias() = F * P;
@@ -127,7 +131,7 @@ void KalmanFilter::update_timestep(float dt) {
     Q(0,0) = dt5/20.0f; Q(0,1) = dt4/8.0f; Q(0,2) = dt3/6.0f;
     Q(1,0) = dt4/8.0f; Q(1,1) = dt3/3.0f; Q( 1,2) = dt2/2.0f;
     Q(2,0) = dt3/6.0f; Q(2,1) = dt2/2.0f; Q(2,2) = dt;
-    Q *= var_process; // multiple by the factor 
+    Q *= var_process;
 }
 
 Eigen::Vector<float,2> meas_vector(float roll_heading, float roll_velocity) {

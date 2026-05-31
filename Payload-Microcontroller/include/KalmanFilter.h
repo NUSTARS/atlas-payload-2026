@@ -9,7 +9,7 @@ class KalmanFilter {
         Eigen::Matrix<float, 2, 2> R, S;
         Eigen::Matrix<float, 2, 3> H;
         Eigen::Matrix<float, 3, 2> HT, PHT, K;
-        Eigen::Matrix<float, 3, 1> x_hat;
+        Eigen::Matrix<float, 3, 1> x_hat, B;
         Eigen::Vector<float,2> y;
 
         const float var_phi = 0.2f * 0.2f; //1e-5;
@@ -20,6 +20,7 @@ class KalmanFilter {
         const float var_process = 1e10f;
         const float damping = -0.1f;
         const float accel_passthrough = 0.95f;
+        const float MOI = 1; // FIXME: add actual moment of inertia about roll axis
         bool initialized;
 
 public:
@@ -35,7 +36,7 @@ public:
     // but good to have if we want to play around with variable timesteps
     void update_timestep(float dt);
     // update x_hat and P_hat
-    void predict();
+    void predict(float u);
     // update x_hat and P_hat based on new measurements, z
     void update(Eigen::Vector<float,2> z);
 

@@ -122,10 +122,14 @@ static void controlISR() {
         // Serial.print( "YPR (deg): "); Serial.print(imu_data.ypr[0], 2); Serial.print(", "); Serial.print(imu_data.ypr[1], 2); Serial.print(", "); Serial.println(imu_data.ypr[2], 2);
         
         // Kalman filter
+        // Predict step
+        // FIXME: Add torque from reaction wheel
+        float tau = 0;
+        kf.predict(tau);
+        // Update step
         float roll_heading = imu_data.ypr[0];
         float roll_velocity = imu_data.angularRate[0];
         Eigen::Vector<float,2> z = meas_vector(roll_heading, roll_velocity);
-        kf.predict();
         kf.update(z);
         Eigen::Vector3f x_hat = kf.state();
 
